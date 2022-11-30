@@ -1,0 +1,14 @@
+[package]
+name = "nwjs-sys-example"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+wasm-bindgen = "0.2.79"
+js-sys = "0.3.56"
+nwjs-sys={path="../nwjs-sys"}
+workflow-log="*"
+
