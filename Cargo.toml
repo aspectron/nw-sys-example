@@ -11,4 +11,5 @@ wasm-bindgen = "0.2.79"
 js-sys = "0.3.56"
 nwjs-sys={path="../nwjs-sys"}
 workflow-log="*"
+workflow-wasm = {path="../workflow-wasm"}
 
