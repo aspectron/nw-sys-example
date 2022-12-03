@@ -13,3 +13,14 @@ nwjs-sys={path="../nwjs-sys"}
 workflow-log="*"
 workflow-wasm = {path="../workflow-wasm"}
 
+[dependencies.web-sys]
+version = "0.3.60"
+features = [
+    'console',
+    'Document',
+    'Window',
+    'HtmlElement',
+    'CustomEvent',
+    'MouseEvent'
+]
+
