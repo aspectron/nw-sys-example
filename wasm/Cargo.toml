@@ -1,5 +1,5 @@
 [package]
-name = "nwjs-sys-wasm"
+name = "nw-sys-wasm"
 version = "0.1.0"
 description = "NWJS Sys WASM Bindings"
 license = "AGPL-3+"
@@ -12,6 +12,6 @@ test = []
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-nwjs-sys-example = { path = "../" }
+nw-sys-example = { path = "../" }
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wasm-bindgen-futures = "0.4.29"

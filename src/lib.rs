@@ -1,9 +1,9 @@
 use wasm_bindgen::prelude::*;
 use workflow_log::log_trace;
 use workflow_wasm::listener::Listener;
-use nwjs_sys::result::Result;
-use nwjs_sys::prelude::*;
-use nwjs_sys::utils;
+use nw_sys::result::Result;
+use nw_sys::prelude::*;
+use nw_sys::utils;
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 

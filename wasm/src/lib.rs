@@ -1,2 +1,2 @@
-#[allow(unused_imports)] use nwjs_sys_example::*;
+#[allow(unused_imports)] use nw_sys_example::*;
 
