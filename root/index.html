@@ -3,14 +3,14 @@
   <head>
     <title>Hello World!</title>
     <style>
-        html{
+        html {
             background-color:#FFF;
             height:100%;
             width:100%;
             margin:0px;
             padding:0px;
         }
-        body{
+        body {
             min-height:100px;
             height:100%;
             background-color:#cbcbcb;
@@ -22,10 +22,15 @@
             padding:15px;
             margin:0px;
         }
+        h1 {
+          text-align: center;
+          font-family: monospace;
+          font-size:46px;
+        }
     </style>
   </head>
   <body>
-    <h1>Hello World!</h1>
+    <h1>Hello WASM!</h1>
     <script>
       (async()=>{
         window.$nwjs = await import('/root/wasm/nwjs.js');
