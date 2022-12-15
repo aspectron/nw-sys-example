@@ -12,6 +12,8 @@ js-sys = "0.3.56"
 nw-sys={path="../nw-sys"}
 workflow-log="*"
 workflow-wasm = {path="../workflow-wasm"}
+workflow-dom = {path="../workflow-dom"}
+workflow-nw = {path="../workflow-nw"}
 
 [dependencies.web-sys]
 version = "0.3.60"
