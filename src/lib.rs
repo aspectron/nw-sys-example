@@ -1,10 +1,13 @@
 
+use nw_sys::utils::document;
+use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use workflow_log::{log_trace, log_info};
 use workflow_dom::utils::window;
 use nw_sys::result::Result;
 use nw_sys::prelude::*;
 use workflow_nw::prelude::*;
+use workflow_wasm::listener::Listener;
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 
@@ -33,22 +36,48 @@ impl ExampleApp{
             .title("Test page")
             .width(200)
             .height(200)
+            .set("frame", JsValue::from(false))
+            .set("transparent", JsValue::from(true))
             .left(0);
 
+        let inner = self.inner.clone();
         self.inner.create_window_with_callback(
             "/root/page2.html", 
             &options,
-            |win|->std::result::Result<(), JsValue>{
+            move |win|->std::result::Result<(), JsValue>{
                 log_trace!("win: {:?}", win);
                 log_trace!("win.x: {:?}", win.x());
                 win.move_by(300, 0);
                 win.set_x(100);
                 win.set_y(100);
 
+                win.resize_by(200, 200);
+                win.resize_to(400, 400);
+
                 log_trace!("win.title: {}", win.title());
                 win.set_title("Another Window");
                 log_trace!("win.set_title(\"Another Window\")");
                 log_trace!("win.title: {}", win.title());
+
+                let win_clone = win.clone();
+                let listener = Listener::new(move |_:JsValue|{
+                    log_trace!("win.closed: {:?}", win_clone);
+                    win_clone.close_with_force();
+                    //remove this listener from app
+                    Ok(())
+                });
+
+                let win_clone2 = win.clone();
+                let maximize_listener = Listener::new(move |_:JsValue|{
+                    log_trace!("win.maximize: {:?}", win_clone2);
+                    Ok(())
+                });
+
+                win.on("close", listener.into_js());
+                win.on("maximize", maximize_listener.into_js());
+
+                inner.push_menu_listener(listener)?;
+                inner.push_menu_listener(maximize_listener)?;
 
                 Ok(())
             }
@@ -86,7 +115,7 @@ impl ExampleApp{
 
         
         MenubarBuilder::new("Example App")
-            .mac_hide_edit(true)
+            //.mac_hide_edit(true)
             .mac_hide_window(true)
             .append(item)
             .build(true)?;
@@ -235,3 +264,51 @@ pub fn initialize()->Result<()>{
     Ok(())
 }
 
+#[wasm_bindgen]
+pub fn capture_window(image_id:String)->Result<()>{
+    let options = nw::window::CaptureConfig::new()
+        .format("png");
+
+    let closure = Closure::new::<Box<dyn FnMut(String)>>(Box::new(move |src|{
+        log_info!("src: {:?}", src);
+        let el = document().get_element_by_id(&image_id).unwrap();
+        let _ = el.set_attribute("src", &src);
+    }));
+
+    nw::Window::get().capture_page_with_config(closure.as_ref().unchecked_ref(), &options);
+
+    closure.forget();
+
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn print_window(){
+    let options = nw::window::PrintOptions::new()
+        .autoprint(false)
+        .footer_string("footer message")
+        .header_string("header message")
+        .scale_factor(150)
+        .should_print_backgrounds(true)
+        //.margin(nw::window::PrintMargin::Custom(Some(100), None, Some(100), None))
+        .margin(nw::window::PrintMargin::Default)
+        .landscape(true);
+    nw::Window::get().print(&options);
+}
+
+
+
+#[wasm_bindgen]
+pub fn test_shell_open_external(){
+    nw::Shell::open_external("https://github.com/nwjs/nw.js");
+}
+#[wasm_bindgen]
+pub fn test_shell_open_item()->Result<()>{
+    nw::Shell::open_item("/Users/surindersingh/Documents/dev/as/flow/workflow-dev/workflow/README.md");
+    Ok(())
+}
+#[wasm_bindgen]
+pub fn test_shell_show_item()->Result<()>{
+    nw::Shell::show_item_in_folder("/Users/surindersingh/Documents/dev/as/flow/workflow-dev/workflow/README.md");
+    Ok(())
+}

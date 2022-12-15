@@ -26,11 +26,26 @@
           text-align: center;
           font-family: monospace;
           font-size:46px;
+          color:#FFF;
+          background-color: #2980b9;
         }
+        .img-box{
+          margin:10px 0px;
+        }
+        #test_image{border:1px solid #2980b9;display:block;margin-bottom:5px;}
     </style>
   </head>
   <body>
     <h1>Hello WASM!</h1>
+    <button onclick="window.$nwjs.print_window();">Print</button>
+    <button onclick="window.$nwjs.test_shell_open_external();">Open External</button>
+    <!--input type="file" id="fileinput" />
+    <button onclick="window.$nwjs.test_shell_open_item('fileinput');">Open Item</button>
+    <button onclick="window.$nwjs.test_shell_show_item('fileinput');">Show item</button-->
+    <div class="img-box">
+      <img id="test_image" width="200" height="200" />
+      <button onclick="window.$nwjs.capture_window('test_image');">Screenshot</button>
+    </div>
     <script>
       (async()=>{
         window.$nwjs = await import('/root/wasm/nwjs.js');
