@@ -17,7 +17,6 @@ pub struct ExampleApp{
 
 impl ExampleApp{
     fn new()->Result<Arc<Self>>{
-
         let app = Arc::new(Self{
             inner: App::new()?
         });
@@ -39,7 +38,7 @@ impl ExampleApp{
         self.inner.create_window_with_callback(
             "/root/page2.html", 
             &options,
-            |win:nw::Window|->std::result::Result<(), JsValue>{
+            |win|->std::result::Result<(), JsValue>{
                 log_trace!("win: {:?}", win);
                 log_trace!("win.x: {:?}", win.x());
                 win.move_by(300, 0);
@@ -163,6 +162,7 @@ impl ExampleApp{
         log_info!("full_argv: {:?}", full_argv);
         let filtered_argv = nw::App::filtered_argv()?;
         log_info!("filtered_argv: {:?}", filtered_argv);
+        
         /*
         for a in filtered_argv{
             log_info!("\nregexp: {}", a.to_string());
@@ -170,6 +170,7 @@ impl ExampleApp{
             log_info!("   --url=http://localhost: {}", a.test("--url=http://localhost"));
         }
         */
+
         Ok(())
     }
 
