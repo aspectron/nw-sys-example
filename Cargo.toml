@@ -23,6 +23,8 @@ features = [
     'Window',
     'HtmlElement',
     'CustomEvent',
-    'MouseEvent'
+    'MouseEvent',
+    'HtmlVideoElement',
+    'MediaStream'
 ]
 

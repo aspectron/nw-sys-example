@@ -13,7 +13,7 @@
         body {
             min-height:100px;
             height:100%;
-            background-color:#cbcbcb;
+            background-color:#f8f8f8;
             position: absolute;
             left:0px;
             right:0px;
@@ -29,10 +29,24 @@
           color:#FFF;
           background-color: #2980b9;
         }
-        .img-box{
-          margin:10px 0px;
+        .media-boxes{
+          display:flex;
+          align-items:stretch;
         }
-        #test_image{border:1px solid #2980b9;display:block;margin-bottom:5px;}
+        .img-box, .video-box{
+          margin:10px 0px;
+          flex:1;
+          margin:5px;
+        }
+        .video-box{
+          flex:2;
+        }
+        #image_el,
+        #video_el{
+          display:block;border:1px solid #2980b9;margin-bottom:5px;
+          width:100%;
+          object-fit: contain;
+        }
     </style>
   </head>
   <body>
@@ -40,12 +54,23 @@
     <button onclick="window.$nwjs.print_window();">Print</button>
     <button onclick="window.$nwjs.test_shell_open_external();">Open External</button>
     <button onclick="window.$nwjs.read_clipboard();">Read Clipboard</button>
+    <button onclick="window.$nwjs.read_screens_info();">Read screens info</button>
     <!--input type="file" id="fileinput" />
     <button onclick="window.$nwjs.test_shell_open_item('fileinput');">Open Item</button>
     <button onclick="window.$nwjs.test_shell_show_item('fileinput');">Show item</button-->
-    <div class="img-box">
-      <img id="test_image" width="200" height="200" />
-      <button onclick="window.$nwjs.capture_window('test_image');">Screenshot</button>
+    <div class="media-boxes">
+      <div class="img-box">
+        <img id="image_el" height="300"
+            src="this-image-dont-exists.png"
+            data-default="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=="
+            onerror="if(!this.src!=this.dataset.default)this.src=this.dataset.default" />
+        <button onclick="window.$nwjs.capture_window('image_el');">Screenshot</button>
+      </div>
+      <div class="video-box">
+        <video autoplay id="video_el" height="300"></video>
+        <button onclick="window.$nwjs.test_desktop_media('video_el');">Test desktop media</button>
+        <button onclick="window.$nwjs.end_desktop_media();">End Stream</button>
+      </div>
     </div>
     <div>Try Shortcut: ( Ctrl + Shift + Q ) : it will close App</div>
     <script>

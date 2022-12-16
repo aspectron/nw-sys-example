@@ -2,12 +2,14 @@
 use nw_sys::utils::document;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
+use workflow_log::log_error;
 use workflow_log::{log_trace, log_info};
 use workflow_dom::utils::window;
 use nw_sys::result::Result;
 use nw_sys::prelude::*;
 use workflow_nw::prelude::*;
 use workflow_wasm::listener::Listener;
+use web_sys::HtmlVideoElement;
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 
@@ -20,6 +22,11 @@ pub struct ExampleApp{
 
 impl ExampleApp{
     fn new()->Result<Arc<Self>>{
+
+        if let Some(app) = app(){
+            return Ok(app);
+        } 
+
         let app = Arc::new(Self{
             inner: App::new()?
         });
@@ -60,7 +67,7 @@ impl ExampleApp{
                 log_trace!("win.title: {}", win.title());
 
                 let win_clone = win.clone();
-                let listener = Listener::new(move |_:JsValue|{
+                let listener = Listener::with_callback(move |_:JsValue|{
                     log_trace!("win.closed: {:?}", win_clone);
                     win_clone.close_with_force();
                     //remove this listener from app
@@ -68,7 +75,7 @@ impl ExampleApp{
                 });
 
                 let win_clone2 = win.clone();
-                let maximize_listener = Listener::new(move |_:JsValue|{
+                let maximize_listener = Listener::with_callback(move |_:JsValue|{
                     log_trace!("win.maximize: {:?}", win_clone2);
                     Ok(())
                 });
@@ -76,8 +83,8 @@ impl ExampleApp{
                 win.on("close", listener.into_js());
                 win.on("maximize", maximize_listener.into_js());
 
-                inner.push_menu_listener(listener)?;
-                inner.push_menu_listener(maximize_listener)?;
+                inner.push_js_value_listener(listener)?;
+                inner.push_js_value_listener(maximize_listener)?;
 
                 Ok(())
             }
@@ -226,41 +233,37 @@ fn app()->Option<Arc<ExampleApp>>{
 
 #[wasm_bindgen]
 pub fn create_context_menu()->Result<()>{
-    if let Some(app) = app(){
-        app.create_context_menu()?;
-    }else{
-        let is_nw = initialize_app()?;
-        if !is_nw{
-            log_info!("TODO: initialize web-app");
-            return Ok(());
-        }
-        let app = app().expect("Unable to create app");
-        app.create_context_menu()?;
+    let (app, is_nw) = initialize_app()?;
+    if !is_nw{
+        log_info!("TODO: initialize web-app");
+        return Ok(());
     }
+    app.create_context_menu()?;
     Ok(())
 }
 
-#[wasm_bindgen]
-pub fn initialize_app()->Result<bool>{
+
+fn initialize_app()->Result<(Arc<ExampleApp>, bool)>{
     let is_nw = nw::is_nw();
 
-    let _app = ExampleApp::new()?;
-    Ok(is_nw)
+    let app = ExampleApp::new()?;
+    Ok((app, is_nw))
 }
 
 #[wasm_bindgen]
 pub fn initialize()->Result<()>{
-    let is_nw = initialize_app()?;
+    let (app, is_nw) = initialize_app()?;
     if !is_nw{
         log_info!("TODO: initialize web-app");
         return Ok(());
     }
 
-    let app = app().expect("Unable to create app");
-
     app.inner.create_window_with_callback(
         "/root/index.html",
-        &nw::window::Options::new().new_instance(false),
+        &nw::window::Options::new()
+            .new_instance(false)
+            .width(1000)
+            .height(800),
         |_win:nw::Window|->std::result::Result<(), JsValue>{
             //app.create_context_menu()?;
             Ok(())
@@ -344,5 +347,86 @@ pub fn read_clipboard()->Result<()>{
     //log_info!("clipboard query_list: {:?}", query_list);
     let result = clip.read_data_array(query_list)?;
     log_info!("clipboard result: {:?}", result);
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn read_screens_info()->Result<()>{
+    nw::Screen::init_once();
+    let info = nw::Screen::screens()?;
+    log_info!("screens infos: {:#?}", info);
+    Ok(())
+}
+
+
+#[wasm_bindgen]
+pub fn test_desktop_media(video_element_id:String)->Result<()>{
+    let (app, _) = initialize_app()?;
+
+    let app_clone = app.clone();
+    let listener = Listener::<JsValue>::with_callback(move |value|->std::result::Result<(), JsValue>{
+        let mut stream_id = None;
+        if value.is_string(){
+            if let Some(id) = value.as_string(){
+                if id.len() > 0{
+                    stream_id = Some(id);
+                }
+            }
+        }
+
+        if let Some(stream_id) = stream_id{
+            log_info!("stream_id: {:?}", stream_id);
+            initialize_app()?;
+    
+            let video_constraints = VideoConstraints::new()
+                .source_id(&stream_id)
+                .max_height(1000);
+
+            let video_el_id = video_element_id.clone();
+            let app = app_clone.clone();
+            workflow_nw::media::get_user_media(
+                video_constraints,
+                None,
+                Arc::new(move |value|{
+                    //log_info!("get_user_media result: {:?}", value);
+
+                    if let Some(media_stream) = value{
+                        let el = document().get_element_by_id(&video_el_id).unwrap();
+                        match el.dyn_into::<HtmlVideoElement>(){
+                            Ok(el)=>{
+                                el.set_src_object(Some(&media_stream));
+                            }
+                            Err(err)=>{
+                                log_error!("Unable to cast element to HtmlVideoElement: element = {:?}", err);
+                            }
+                        }
+
+                        let _ = app.inner.set_media_stream(Some(media_stream));
+                    }
+                })
+            )?;
+        }else{
+            log_info!("no stream_id"); 
+        }
+        
+        Ok(())
+    });
+
+    nw::Screen::choose_desktop_media(
+        nw::screen::Sources::ScreenAndWindow,
+        listener.into_js()
+    )?;
+
+    app.inner.push_js_value_listener(listener)?;
+
+    Ok(())
+}
+
+
+#[wasm_bindgen]
+pub fn end_desktop_media()->Result<()>{
+    if let Some(app) = app(){
+        app.inner.stop_media_stream(None, None)?;
+    }
     Ok(())
 }
