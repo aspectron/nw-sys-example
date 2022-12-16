@@ -36,8 +36,8 @@ impl ExampleApp{
             .title("Test page")
             .width(200)
             .height(200)
-            .set("frame", JsValue::from(false))
-            .set("transparent", JsValue::from(true))
+            //.set("frame", JsValue::from(false))
+            //.set("transparent", JsValue::from(true))
             .left(0);
 
         let inner = self.inner.clone();
