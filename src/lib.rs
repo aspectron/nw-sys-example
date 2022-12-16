@@ -186,9 +186,10 @@ impl ExampleApp{
 
     fn add_shortcut(&self)->Result<()>{
         let shortcut = ShortcutBuilder::new()
-            .key("Ctrl+Shift+D")
+            .key("Ctrl+Shift+Q")
             .active(|_|{
-                window().alert_with_message("Ctrl+Shift+D pressed")?;
+                window().alert_with_message("Ctrl+Shift+Q pressed, App will close")?;
+                nw::App::quit();
                 Ok(())
             })
             .build()?;
@@ -326,5 +327,22 @@ pub fn test_shell_open_item()->Result<()>{
 #[wasm_bindgen]
 pub fn test_shell_show_item()->Result<()>{
     nw::Shell::show_item_in_folder("/Users/surindersingh/Documents/dev/as/flow/workflow-dev/workflow/README.md");
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn read_clipboard()->Result<()>{
+    let clip = nw::Clipboard::get();
+    let types = clip.read_available_types();
+    log_info!("clipboard data types: {:?}", types);
+    let mut query_list = Vec::new();
+    for data_type in types{
+        query_list.push(nw::clipboard::DataRead::from((data_type, None)));
+    }
+    query_list.push(nw::clipboard::DataRead::from(("png".to_string(), None)));
+
+    //log_info!("clipboard query_list: {:?}", query_list);
+    let result = clip.read_data_array(query_list)?;
+    log_info!("clipboard result: {:?}", result);
     Ok(())
 }

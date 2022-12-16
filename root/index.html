@@ -39,6 +39,7 @@
     <h1>Hello WASM!</h1>
     <button onclick="window.$nwjs.print_window();">Print</button>
     <button onclick="window.$nwjs.test_shell_open_external();">Open External</button>
+    <button onclick="window.$nwjs.read_clipboard();">Read Clipboard</button>
     <!--input type="file" id="fileinput" />
     <button onclick="window.$nwjs.test_shell_open_item('fileinput');">Open Item</button>
     <button onclick="window.$nwjs.test_shell_show_item('fileinput');">Show item</button-->
@@ -46,7 +47,7 @@
       <img id="test_image" width="200" height="200" />
       <button onclick="window.$nwjs.capture_window('test_image');">Screenshot</button>
     </div>
-    <div>Try Shortcut: Ctrl + Shift + D</div>
+    <div>Try Shortcut: ( Ctrl + Shift + Q ) : it will close App</div>
     <script>
       (async()=>{
         window.$nwjs = await import('/root/wasm/nwjs.js');
