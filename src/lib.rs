@@ -184,6 +184,20 @@ impl ExampleApp{
         Ok(())
     }
 
+    fn add_shortcut(&self)->Result<()>{
+        let shortcut = ShortcutBuilder::new()
+            .key("Ctrl+Shift+D")
+            .active(|_|{
+                window().alert_with_message("Ctrl+Shift+D pressed")?;
+                Ok(())
+            })
+            .build()?;
+
+        nw::App::register_global_hot_key(&shortcut);
+
+        Ok(())
+    }
+
     fn test_argv()->Result<()>{
         let argv = nw::App::argv()?;
         log_info!("argv: {:?}", argv);
@@ -258,6 +272,8 @@ pub fn initialize()->Result<()>{
     app.create_menu()?;
     app.create_tray_icon()?;
     app.create_tray_icon_with_menu()?;
+
+    app.add_shortcut()?;
 
     ExampleApp::test_argv()?;
     
