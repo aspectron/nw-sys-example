@@ -10,6 +10,7 @@ use nw_sys::prelude::*;
 use workflow_nw::prelude::*;
 use workflow_wasm::listener::Listener;
 use web_sys::HtmlVideoElement;
+use workflow_nw::app::Callback;
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 
@@ -360,11 +361,11 @@ pub fn read_screens_info()->Result<()>{
 
 
 #[wasm_bindgen]
-pub fn test_desktop_media(video_element_id:String)->Result<()>{
+pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
     let app_clone = app.clone();
-    let listener = Listener::<JsValue>::with_callback(move |value|->std::result::Result<(), JsValue>{
+    let listener = Listener::<Callback<JsValue>>::with_callback(move |value:JsValue|->std::result::Result<(), JsValue>{
         let mut stream_id = None;
         if value.is_string(){
             if let Some(id) = value.as_string(){
@@ -428,5 +429,26 @@ pub fn end_desktop_media()->Result<()>{
     if let Some(app) = app(){
         app.inner.stop_media_stream(None, None)?;
     }
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn desktop_capture_monitor(_video_element_id:String)->Result<()>{
+    let (app, _) = initialize_app()?;
+
+
+    use nw::Screen::DesktopCaptureMonitor as dcm;
+
+    //let app_clone = app.clone();
+    let closure = Closure::new::<Box<dyn FnMut(JsValue, JsValue)->Result<()>>>(Box::new(move |id, thumbnail|->Result<()>{
+        log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
+        Ok(())
+    }));
+    dcm::on("thumbnailchanged", closure.as_ref().unchecked_ref());
+
+    dcm::start(true, true);
+    log_info!("dcm::started(): {}", dcm::started());
+
+    //app.inner.add_(listener)?;
     Ok(())
 }
