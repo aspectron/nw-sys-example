@@ -59,7 +59,10 @@ impl ExampleApp{
                 win.set_x(100);
                 win.set_y(100);
 
+                //test resize by method
                 win.resize_by(200, 200);
+
+                //test resize by method
                 win.resize_to(400, 400);
 
                 log_trace!("win.title: {}", win.title());
@@ -68,24 +71,26 @@ impl ExampleApp{
                 log_trace!("win.title: {}", win.title());
 
                 let win_clone = win.clone();
-                let listener = Listener::with_callback(move |_:JsValue|{
+                let mut listener = Listener::<dyn FnMut()->Result<()>>::new();
+                let listener_clone = listener.clone();
+                listener.callback(move || ->Result<()>{
                     log_trace!("win.closed: {:?}", win_clone);
                     win_clone.close_with_force();
+                    let a = listener_clone.clone();
                     //remove this listener from app
                     Ok(())
                 });
 
                 let win_clone2 = win.clone();
-                let maximize_listener = Listener::with_callback(move |_:JsValue|{
+                let maximize_listener = Listener::<dyn FnMut()>::with_callback(move ||{
                     log_trace!("win.maximize: {:?}", win_clone2);
-                    Ok(())
                 });
 
                 win.on("close", listener.into_js());
                 win.on("maximize", maximize_listener.into_js());
 
-                inner.push_js_value_listener(listener)?;
-                inner.push_js_value_listener(maximize_listener)?;
+                inner.push_listener(listener)?;
+                inner.push_listener(maximize_listener)?;
 
                 Ok(())
             }
@@ -418,7 +423,7 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
         listener.into_js()
     )?;
 
-    app.inner.push_js_value_listener(listener)?;
+    app.inner.push_listener(listener)?;
 
     Ok(())
 }
