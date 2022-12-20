@@ -47,17 +47,25 @@
           width:100%;
           object-fit: contain;
         }
+        .section{
+          margin:5px 0px;
+        }
+        .section label{
+          text-decoration: uppercase;display:inline-block;margin-right:10px;
+        }
     </style>
   </head>
   <body>
     <h1>Hello WASM!</h1>
     <button onclick="window.$nwjs.print_window();">Print</button>
-    <button onclick="window.$nwjs.test_shell_open_external();">Open External</button>
-    <button onclick="window.$nwjs.read_clipboard();">Read Clipboard</button>
+    <button onclick="window.$nwjs.test_clipboard();">Test Clipboard</button>
     <button onclick="window.$nwjs.read_screens_info();">Read screens info</button>
-    <!--input type="file" id="fileinput" />
-    <button onclick="window.$nwjs.test_shell_open_item('fileinput');">Open Item</button>
-    <button onclick="window.$nwjs.test_shell_show_item('fileinput');">Show item</button-->
+    <div class="section">
+      <label>Shell :</label>
+      <button onclick="window.$nwjs.test_shell_open_external();">Open External</button>
+      <button onclick="window.$nwjs.test_shell_open_item();">Open Item</button>
+      <button onclick="window.$nwjs.test_shell_show_item();">Show Item</button>
+    </div>
     <div class="media-boxes">
       <div class="img-box">
         <img id="image_el" height="300"

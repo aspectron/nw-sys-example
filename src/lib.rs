@@ -40,7 +40,7 @@ impl ExampleApp{
     }
 
     fn create_window(&self)->Result<()>{
-        let options = nw::window::Options::new()
+        let options = nw_sys::window::Options::new()
             .title("Test page")
             .width(200)
             .height(200)
@@ -76,7 +76,7 @@ impl ExampleApp{
                 listener.callback(move || ->Result<()>{
                     log_trace!("win.closed: {:?}", win_clone);
                     win_clone.close_with_force();
-                    let a = listener_clone.clone();
+                    let _a = listener_clone.clone();
                     //remove this listener from app
                     Ok(())
                 });
@@ -198,27 +198,36 @@ impl ExampleApp{
     }
 
     fn add_shortcut(&self)->Result<()>{
+        
         let shortcut = ShortcutBuilder::new()
             .key("Ctrl+Shift+Q")
             .active(|_|{
                 window().alert_with_message("Ctrl+Shift+Q pressed, App will close")?;
-                nw::App::quit();
+                //nw_sys::app::quit();
+                nw_sys::app::close_all_windows();
                 Ok(())
             })
             .build()?;
 
-        nw::App::register_global_hot_key(&shortcut);
+        nw_sys::app::register_global_hot_key(&shortcut);
+        
 
         Ok(())
     }
 
-    fn test_argv()->Result<()>{
-        let argv = nw::App::argv()?;
+    fn test_app_functions()->Result<()>{
+        log_info!("nw_sys::app::start_path(): {:?}", nw_sys::app::start_path());
+        log_info!("nw_sys::app::data_path(): {:?}", nw_sys::app::data_path());
+        log_info!("nw_sys::app::manifest(): {:?}", nw_sys::app::manifest());
+        
+        let argv = nw_sys::app::argv()?;
         log_info!("argv: {:?}", argv);
-        let full_argv = nw::App::full_argv()?;
+        let full_argv = nw_sys::app::full_argv()?;
         log_info!("full_argv: {:?}", full_argv);
-        let filtered_argv = nw::App::filtered_argv()?;
+        let filtered_argv = nw_sys::app::filtered_argv()?;
         log_info!("filtered_argv: {:?}", filtered_argv);
+        let list:Vec<js_sys::JsString> = filtered_argv.iter().map(|a| a.to_string()).collect();
+        log_info!("filtered_argv as Vec<js_sys::JsString>: {:?}", list);
         
         /*
         for a in filtered_argv{
@@ -250,7 +259,7 @@ pub fn create_context_menu()->Result<()>{
 
 
 fn initialize_app()->Result<(Arc<ExampleApp>, bool)>{
-    let is_nw = nw::is_nw();
+    let is_nw = nw_sys::is_nw();
 
     let app = ExampleApp::new()?;
     Ok((app, is_nw))
@@ -266,18 +275,18 @@ pub fn initialize()->Result<()>{
 
     app.inner.create_window_with_callback(
         "/root/index.html",
-        &nw::window::Options::new()
+        &nw_sys::window::Options::new()
             .new_instance(false)
             .width(1000)
             .height(800),
-        |_win:nw::Window|->std::result::Result<(), JsValue>{
+        |_win :nw_sys::Window|->std::result::Result<(), JsValue>{
             //app.create_context_menu()?;
             Ok(())
         }
     )?;
 
-    let window = nw::Window::get();
-    log_trace!("nw.Window.get(): {:?}", window);
+    let window = nw_sys::window::get();
+    log_trace!("nw::window::get(): {:?}", window);
 
     app.create_menu()?;
     app.create_tray_icon()?;
@@ -285,14 +294,14 @@ pub fn initialize()->Result<()>{
 
     app.add_shortcut()?;
 
-    ExampleApp::test_argv()?;
+    ExampleApp::test_app_functions()?;
     
     Ok(())
 }
 
 #[wasm_bindgen]
 pub fn capture_window(image_id:String)->Result<()>{
-    let options = nw::window::CaptureConfig::new()
+    let options = nw_sys::window::CaptureConfig::new()
         .format("png");
 
     let closure = Closure::new::<Box<dyn FnMut(String)>>(Box::new(move |src|{
@@ -301,7 +310,7 @@ pub fn capture_window(image_id:String)->Result<()>{
         let _ = el.set_attribute("src", &src);
     }));
 
-    nw::Window::get().capture_page_with_config(closure.as_ref().unchecked_ref(), &options);
+    nw_sys::window::get().capture_page_with_config(closure.as_ref().unchecked_ref(), &options);
 
     closure.forget();
 
@@ -310,56 +319,65 @@ pub fn capture_window(image_id:String)->Result<()>{
 
 #[wasm_bindgen]
 pub fn print_window(){
-    let options = nw::window::PrintOptions::new()
+    let options = nw_sys::window::PrintOptions::new()
         .autoprint(false)
         .footer_string("footer message")
         .header_string("header message")
         .scale_factor(150)
         .should_print_backgrounds(true)
         //.margin(nw::window::PrintMargin::Custom(Some(100), None, Some(100), None))
-        .margin(nw::window::PrintMargin::Default)
+        .margin(nw_sys::window::PrintMargin::Default)
         .landscape(true);
-    nw::Window::get().print(&options);
+    nw_sys::window::get().print(&options);
 }
-
-
 
 #[wasm_bindgen]
 pub fn test_shell_open_external(){
-    nw::Shell::open_external("https://github.com/nwjs/nw.js");
+    nw_sys::shell::open_external("https://github.com/nwjs/nw.js");
 }
 #[wasm_bindgen]
 pub fn test_shell_open_item()->Result<()>{
-    nw::Shell::open_item("/Users/surindersingh/Documents/dev/as/flow/workflow-dev/workflow/README.md");
+    let path = nw_sys::app::start_path();
+    log_trace!("path: {:?}", path);
+    //TODO: this path fails under compiled app (.app/.exe file)
+    nw_sys::shell::open_item(&(path+"/root/index.html"));// path/to/file.txt
     Ok(())
 }
 #[wasm_bindgen]
 pub fn test_shell_show_item()->Result<()>{
-    nw::Shell::show_item_in_folder("/Users/surindersingh/Documents/dev/as/flow/workflow-dev/workflow/README.md");
+    let path = nw_sys::app::start_path();
+    log_trace!("path: {:?}", path);
+    //TODO: this path fails under compiled app (.app/.exe file)
+    nw_sys::shell::show_item_in_folder(&(path+"/root/index.html"));// absolute/path/to/file.txt
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn read_clipboard()->Result<()>{
-    let clip = nw::Clipboard::get();
-    let types = clip.read_available_types();
+pub fn test_clipboard()->Result<()>{
+    let clip = nw_sys::clipboard::get();
+    let types = clip.get_available_types();
     log_info!("clipboard data types: {:?}", types);
     let mut query_list = Vec::new();
     for data_type in types{
-        query_list.push(nw::clipboard::DataRead::from((data_type, None)));
+        query_list.push(nw_sys::clipboard::DataRead::from((data_type, None)));
     }
-    query_list.push(nw::clipboard::DataRead::from(("png".to_string(), None)));
+    query_list.push(nw_sys::clipboard::DataRead::from(("png".to_string(), None)));
 
     //log_info!("clipboard query_list: {:?}", query_list);
-    let result = clip.read_data_array(query_list)?;
-    log_info!("clipboard result: {:?}", result);
+    let result = clip.get_data_array(query_list)?;
+    log_info!("clip.get_data_array(): {:?}", result);
+
+    log_info!("clip.set(\"Hello World\")");
+    clip.set("Hello world");
+    log_info!("clip.get(): {:?} should be \"Hello World\"", clip.get());
+
     Ok(())
 }
 
 #[wasm_bindgen]
 pub fn read_screens_info()->Result<()>{
-    nw::Screen::init_once();
-    let info = nw::Screen::screens()?;
+    nw_sys::screen::init_once();
+    let info = nw_sys::screen::screens()?;
     log_info!("screens infos: {:#?}", info);
     Ok(())
 }
@@ -418,8 +436,8 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
         Ok(())
     });
 
-    nw::Screen::choose_desktop_media(
-        nw::screen::Sources::ScreenAndWindow,
+    nw_sys::screen::choose_desktop_media(
+        nw_sys::screen::MediaSources::ScreenAndWindow,
         listener.into_js()
     )?;
 
@@ -439,10 +457,10 @@ pub fn end_desktop_media()->Result<()>{
 
 #[wasm_bindgen]
 pub fn desktop_capture_monitor(_video_element_id:String)->Result<()>{
-    let (app, _) = initialize_app()?;
+    let (_app, _) = initialize_app()?;
 
 
-    use nw::Screen::DesktopCaptureMonitor as dcm;
+    use nw_sys::screen::DesktopCaptureMonitor as dcm;
 
     //let app_clone = app.clone();
     let closure = Closure::new::<Box<dyn FnMut(JsValue, JsValue)->Result<()>>>(Box::new(move |id, thumbnail|->Result<()>{
