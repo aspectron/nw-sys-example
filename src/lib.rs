@@ -41,9 +41,8 @@ impl ExampleApp{
         Ok(app)
     }
 
-    pub fn test_synopsis()->Result<()>{
+    pub fn test_synopsis(&self)->Result<()>{
         
-
         Ok(())
     }
 
@@ -309,7 +308,8 @@ pub fn initialize()->Result<()>{
 
 #[wasm_bindgen]
 pub fn test_synopsis()->Result<()>{
-    ExampleApp::test_synopsis()?;
+    let (app, _) = initialize_app()?;
+    app.test_synopsis()?;
     Ok(())
 }
 
@@ -480,6 +480,7 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
 
     use nw_sys::screen::desktop_capture_monitor as dcm;
     let container = document().get_element_by_id(&container_id).unwrap();
+    let container_id_clone = container_id.clone();
     let view_holder = container.query_selector(".view-holder").unwrap().unwrap();
     let mut cb = Callback::<dyn FnMut(String, String)->Result<()>>::new();
     cb.set_closure(move |id, thumbnail|->Result<()>{
@@ -498,10 +499,10 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     app.inner.push_callback(cb)?;
 
     let app_clone = app.clone();
+    
     let mut cb = Callback::<dyn FnMut(String, String, u16, String)->Result<()>>::new();
     cb.set_closure(move |id:String, name:String, _order, w_type|->Result<()>{
-        //log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, order, w_type);
-        
+        log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, _order, w_type);
         
         let contaner_el = view_holder.query_selector(&format!(".{} .items", w_type)).unwrap();
         let contaner_el = match contaner_el{
@@ -527,10 +528,12 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
 
             let video_element_id = video_element_id.clone();
             let id_clone = id.clone();
+            let container_id_clone = container_id_clone.clone();
             let tree = html!{
                 <div class="panel" data-id={id} !click={
                     let stream_id = nw_sys::screen::desktop_capture_monitor::register_stream(&id_clone);
                     let _ = render_media(video_element_id.clone(), stream_id);
+                    let _ = stop_capture_monitor(container_id_clone.clone());
                 }>
                     <h2 class="title">{name}</h2>
                     <img src="this-image-dont-exists.png"
