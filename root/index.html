@@ -9,6 +9,7 @@
             width:100%;
             margin:0px;
             padding:0px;
+            overflow: hidden;
         }
         body {
             min-height:100px;
@@ -21,6 +22,9 @@
             bottom:0px;
             padding:15px;
             margin:0px;
+        }
+        .heading{
+          margin:0px 0px 15px;
         }
         h1 {
           text-align: center;
@@ -53,10 +57,46 @@
         .section label{
           text-decoration: uppercase;display:inline-block;margin-right:10px;
         }
+        .capture-monitor #view_holder{
+          display:flex;
+          align-items:flex-start;
+          margin-bottom: 10px;
+        }
+        .capture-monitor .panels{
+          flex:1;
+          margin:0px 5px;
+          border:1px solid #2980b9;
+        }
+        .capture-monitor .panels .items{
+          height: 300px;
+          overflow: auto;
+        }
+        .capture-monitor .panel{
+          width:100px;
+          margin:10px;
+          border:1px solid #2980b9;
+          display: inline-block;
+        }
+        .capture-monitor .panel img{
+          width:100%;
+          height:100px;
+          object-fit: contain;
+        }
+        .capture-monitor .panels h1{
+          font-size: 0.9rem;
+          margin-top:0px;
+        }
+        .capture-monitor .panel h2{
+          font-size: 0.5rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          margin: 5px;
+        }
     </style>
   </head>
   <body>
-    <h1>Hello WASM!</h1>
+    <h1 class="heading">Hello WASM!</h1>
     <button onclick="window.$nwjs.print_window();">Print</button>
     <button onclick="window.$nwjs.test_clipboard();">Test Clipboard</button>
     <button onclick="window.$nwjs.read_screens_info();">Read screens info</button>
@@ -68,18 +108,25 @@
     </div>
     <div class="media-boxes">
       <div class="img-box">
-        <img id="image_el" height="300"
+        <img id="image_el" height="200"
             src="this-image-dont-exists.png"
             data-default="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=="
             onerror="if(!this.src!=this.dataset.default)this.src=this.dataset.default" />
         <button onclick="window.$nwjs.capture_window('image_el');">Screenshot</button>
       </div>
       <div class="video-box">
-        <video autoplay id="video_el" height="300"></video>
+        <video autoplay id="video_el" height="200"></video>
         <button onclick="window.$nwjs.choose_desktop_media('video_el');">Choose desktop media</button>
-        <button onclick="window.$nwjs.desktop_capture_monitor('video_el');">Desktop capture monitor</button>
         <button onclick="window.$nwjs.end_desktop_media();">End Stream</button>
       </div>
+    </div>
+    <div class="capture-monitor">
+      <div id="view_holder">
+        <div class="panels window"><h1>Windows</h1><div class="items"></div></div>
+        <div class="panels screen"><h1>Screens</h1><div class="items"></div></div>
+      </div>
+      <button onclick="window.$nwjs.desktop_capture_monitor('view_holder');">Desktop capture monitor</button>
+      <button onclick="window.$nwjs.end_desktop_media();">End Stream</button>
     </div>
     <div>Try Shortcut: ( Ctrl + Shift + Q ) : it will close App</div>
     <script>

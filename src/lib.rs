@@ -277,7 +277,7 @@ pub fn initialize()->Result<()>{
         "/root/index.html",
         &nw_sys::window::Options::new()
             .new_instance(false)
-            .width(1000)
+            .width(1040)
             .height(800),
         |_win :nw_sys::Window|->std::result::Result<(), JsValue>{
             //app.create_context_menu()?;
@@ -456,22 +456,102 @@ pub fn end_desktop_media()->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn desktop_capture_monitor(_video_element_id:String)->Result<()>{
-    let (_app, _) = initialize_app()?;
+pub fn desktop_capture_monitor(container_element_id:String)->Result<()>{
+    let (app, _) = initialize_app()?;
 
+    nw_sys::screen::init_once();
 
     use nw_sys::screen::DesktopCaptureMonitor as dcm;
 
-    //let app_clone = app.clone();
-    let closure = Closure::new::<Box<dyn FnMut(JsValue, JsValue)->Result<()>>>(Box::new(move |id, thumbnail|->Result<()>{
-        log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
+    let container_id = container_element_id.clone();
+    let mut cb = Listener::<dyn FnMut(String, String)->Result<()>>::new();
+    cb.callback(move |id, thumbnail|->Result<()>{
+        //log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
+
+        let panel_el = document().query_selector(&format!("#{} [data-id=\"{}\"]", &container_id, id)).unwrap();
+        if let Some(panel_el) = panel_el{
+            let img = panel_el.query_selector("img")?.unwrap();
+            img.set_attribute("src", &format!("data:image/png;base64,{}", thumbnail))?;
+        }
+
         Ok(())
-    }));
-    dcm::on("thumbnailchanged", closure.as_ref().unchecked_ref());
+    });
+
+    dcm::on("thumbnailchanged", cb.into_js());
+    app.inner.push_listener(cb)?;
+
+    let mut cb = Listener::<dyn FnMut(String, String, u16, String)->Result<()>>::new();
+    cb.callback(move |id:String, name:String, _order, w_type|->Result<()>{
+        //log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, order, w_type);
+        
+        let view_holder = document().get_element_by_id(&container_element_id).unwrap();
+        let contaner_el = view_holder.query_selector(&format!(".{} .items", w_type)).unwrap();
+        let contaner_el = match contaner_el{
+            Some(el) =>el,
+            None=>{
+                let el = document().create_element("div")?;
+                el.set_class_name(&format!("panels {}", w_type));
+                view_holder.append_child(&el)?;
+
+                let title_el = document().create_element("h1")?;
+                title_el.set_class_name("title");
+                title_el.set_inner_html(&format!("{}s", w_type));
+                el.append_child(&title_el)?;
+
+                let items_el = document().create_element("div")?;
+                items_el.set_class_name("items");
+                el.append_child(&items_el)?;
+                items_el
+            }
+        };
+        let box_el = contaner_el.query_selector(&format!("[data-id=\"{}\"]", &id)).unwrap();
+        if let Some(_box_el) = box_el{
+            //box_el
+        }else{
+            let panel = document().create_element("div")?;
+            panel.set_class_name("panel");
+            panel.set_attribute("data-id", &id)?;
+            contaner_el.append_child(&panel)?;
+
+            let title_el = document().create_element("h2")?;
+            title_el.set_class_name("title");
+            title_el.set_inner_html(&format!("{}", name));
+            panel.append_child(&title_el)?;
+
+            let img_el = document().create_element("img")?;
+            img_el.set_attribute("src", "this-image-dont-exists.png")?;
+            img_el.set_attribute("onerror", "if(!this.src!=this.dataset.default)this.src=this.dataset.default")?;
+            img_el.set_attribute("data-default", "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==")?;
+            panel.append_child(&img_el)?;
+        }
+
+        Ok(())
+    });
+
+    dcm::on("added", cb.into_js());
+    app.inner.push_listener(cb)?;
+
+    let mut cb = Listener::<dyn FnMut(u16)->Result<()>>::new();
+    cb.callback(move |id|->Result<()>{
+        log_info!("removed: id:{:?}", id);
+
+        /*
+        let panel_el = document().query_selector(&format!("#{} [data-id=\"{}\"]", &container_id, id)).unwrap();
+        if let Some(panel_el) = panel_el{
+            let img = panel_el.query_selector("img")?.unwrap();
+            img.set_attribute("src", &format!("data:image/png;base64,{}", thumbnail))?;
+        }
+        */
+
+        Ok(())
+    });
+
+    dcm::on("removed", cb.into_js());
+    app.inner.push_listener(cb)?;
 
     dcm::start(true, true);
     log_info!("dcm::started(): {}", dcm::started());
 
-    //app.inner.add_(listener)?;
+    
     Ok(())
 }
