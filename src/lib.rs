@@ -11,13 +11,15 @@ use workflow_nw::prelude::*;
 use workflow_wasm::listener::Listener;
 use web_sys::HtmlVideoElement;
 use workflow_nw::app::Callback;
+use workflow_html::{html, Html, Render};
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 
 
 #[derive(Clone)]
 pub struct ExampleApp{
-    pub inner:Arc<App>
+    pub inner:Arc<App>,
+    pub htmls:Arc<Mutex<Vec<Html>>>
 }
 
 
@@ -29,7 +31,8 @@ impl ExampleApp{
         } 
 
         let app = Arc::new(Self{
-            inner: App::new()?
+            inner: App::new()?,
+            htmls: Arc::new(Mutex::new(Vec::new()))
         });
 
         unsafe{
@@ -383,11 +386,43 @@ pub fn read_screens_info()->Result<()>{
 }
 
 
+fn render_media(video_element_id:String, stream_id:String)->Result<()>{
+    log_info!("stream_id: {:?}", stream_id);
+    let (app, _) = initialize_app()?;
+
+    let video_constraints = VideoConstraints::new()
+        .source_id(&stream_id)
+        .max_height(1000);
+
+    let video_el_id = video_element_id.clone();
+    workflow_nw::media::get_user_media(
+        video_constraints,
+        None,
+        Arc::new(move |value|{
+            //log_info!("get_user_media result: {:?}", value);
+
+            if let Some(media_stream) = value{
+                let el = document().get_element_by_id(&video_el_id).unwrap();
+                match el.dyn_into::<HtmlVideoElement>(){
+                    Ok(el)=>{
+                        el.set_src_object(Some(&media_stream));
+                    }
+                    Err(err)=>{
+                        log_error!("Unable to cast element to HtmlVideoElement: element = {:?}", err);
+                    }
+                }
+
+                let _ = app.inner.set_media_stream(Some(media_stream));
+            }
+        })
+    )?;
+    Ok(())
+}
+
 #[wasm_bindgen]
 pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
-    let app_clone = app.clone();
     let listener = Listener::<Callback<JsValue>>::with_callback(move |value:JsValue|->std::result::Result<(), JsValue>{
         let mut stream_id = None;
         if value.is_string(){
@@ -399,36 +434,7 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
         }
 
         if let Some(stream_id) = stream_id{
-            log_info!("stream_id: {:?}", stream_id);
-            initialize_app()?;
-    
-            let video_constraints = VideoConstraints::new()
-                .source_id(&stream_id)
-                .max_height(1000);
-
-            let video_el_id = video_element_id.clone();
-            let app = app_clone.clone();
-            workflow_nw::media::get_user_media(
-                video_constraints,
-                None,
-                Arc::new(move |value|{
-                    //log_info!("get_user_media result: {:?}", value);
-
-                    if let Some(media_stream) = value{
-                        let el = document().get_element_by_id(&video_el_id).unwrap();
-                        match el.dyn_into::<HtmlVideoElement>(){
-                            Ok(el)=>{
-                                el.set_src_object(Some(&media_stream));
-                            }
-                            Err(err)=>{
-                                log_error!("Unable to cast element to HtmlVideoElement: element = {:?}", err);
-                            }
-                        }
-
-                        let _ = app.inner.set_media_stream(Some(media_stream));
-                    }
-                })
-            )?;
+            render_media(video_element_id.clone(), stream_id)?;
         }else{
             log_info!("no stream_id"); 
         }
@@ -456,14 +462,14 @@ pub fn end_desktop_media()->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn desktop_capture_monitor(container_element_id:String)->Result<()>{
+pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
     nw_sys::screen::init_once();
 
     use nw_sys::screen::DesktopCaptureMonitor as dcm;
-
-    let container_id = container_element_id.clone();
+    let container = document().get_element_by_id(&container_id).unwrap();
+    let view_holder = container.query_selector(".view-holder").unwrap().unwrap();
     let mut cb = Listener::<dyn FnMut(String, String)->Result<()>>::new();
     cb.callback(move |id, thumbnail|->Result<()>{
         //log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
@@ -480,49 +486,52 @@ pub fn desktop_capture_monitor(container_element_id:String)->Result<()>{
     dcm::on("thumbnailchanged", cb.into_js());
     app.inner.push_listener(cb)?;
 
+    let app_clone = app.clone();
     let mut cb = Listener::<dyn FnMut(String, String, u16, String)->Result<()>>::new();
     cb.callback(move |id:String, name:String, _order, w_type|->Result<()>{
         //log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, order, w_type);
         
-        let view_holder = document().get_element_by_id(&container_element_id).unwrap();
+        
         let contaner_el = view_holder.query_selector(&format!(".{} .items", w_type)).unwrap();
         let contaner_el = match contaner_el{
             Some(el) =>el,
             None=>{
-                let el = document().create_element("div")?;
-                el.set_class_name(&format!("panels {}", w_type));
-                view_holder.append_child(&el)?;
 
-                let title_el = document().create_element("h1")?;
-                title_el.set_class_name("title");
-                title_el.set_inner_html(&format!("{}s", w_type));
-                el.append_child(&title_el)?;
+                let tree = html!{
+                    <div class={format!("panels {}", w_type)}>
+                        <h1 class="title">{format!("{}s", w_type)}</h1>
+                        <div class="items" @items></div>
+                    </div>
+                }?;
+    
+                tree.inject_into(&view_holder)?;
 
-                let items_el = document().create_element("div")?;
-                items_el.set_class_name("items");
-                el.append_child(&items_el)?;
-                items_el
+                tree.hooks().get("items").unwrap().clone()
             }
         };
         let box_el = contaner_el.query_selector(&format!("[data-id=\"{}\"]", &id)).unwrap();
         if let Some(_box_el) = box_el{
             //box_el
         }else{
-            let panel = document().create_element("div")?;
-            panel.set_class_name("panel");
-            panel.set_attribute("data-id", &id)?;
-            contaner_el.append_child(&panel)?;
 
-            let title_el = document().create_element("h2")?;
-            title_el.set_class_name("title");
-            title_el.set_inner_html(&format!("{}", name));
-            panel.append_child(&title_el)?;
+            let video_element_id = video_element_id.clone();
+            let id_clone = id.clone();
+            let tree = html!{
+                <div class="panel" data-id={id} !click={
+                    let stream_id = nw_sys::screen::DesktopCaptureMonitor::register_stream(&id_clone);
+                    let _ = render_media(video_element_id.clone(), stream_id);
+                }>
+                    <h2 class="title">{name}</h2>
+                    <img src="this-image-dont-exists.png"
+                    onerror="if(!this.src!=this.dataset.default)this.src=this.dataset.default" 
+                    data-default="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg=="
+                    />
+                </div>
+            }?;
 
-            let img_el = document().create_element("img")?;
-            img_el.set_attribute("src", "this-image-dont-exists.png")?;
-            img_el.set_attribute("onerror", "if(!this.src!=this.dataset.default)this.src=this.dataset.default")?;
-            img_el.set_attribute("data-default", "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjwvc3ZnPg==")?;
-            panel.append_child(&img_el)?;
+            tree.inject_into(&contaner_el)?;
+
+            app_clone.htmls.lock().unwrap().push(tree);
         }
 
         Ok(())
@@ -534,15 +543,6 @@ pub fn desktop_capture_monitor(container_element_id:String)->Result<()>{
     let mut cb = Listener::<dyn FnMut(u16)->Result<()>>::new();
     cb.callback(move |id|->Result<()>{
         log_info!("removed: id:{:?}", id);
-
-        /*
-        let panel_el = document().query_selector(&format!("#{} [data-id=\"{}\"]", &container_id, id)).unwrap();
-        if let Some(panel_el) = panel_el{
-            let img = panel_el.query_selector("img")?.unwrap();
-            img.set_attribute("src", &format!("data:image/png;base64,{}", thumbnail))?;
-        }
-        */
-
         Ok(())
     });
 
@@ -551,7 +551,15 @@ pub fn desktop_capture_monitor(container_element_id:String)->Result<()>{
 
     dcm::start(true, true);
     log_info!("dcm::started(): {}", dcm::started());
-
+    container.class_list().add_1("started")?;
     
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn stop_capture_monitor(el:String)->Result<()>{
+    nw_sys::screen::DesktopCaptureMonitor::stop();
+    document().get_element_by_id(&el).unwrap().class_list().remove_1("started")?;
+
     Ok(())
 }

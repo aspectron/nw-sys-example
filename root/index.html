@@ -40,7 +40,10 @@
         .img-box, .video-box{
           margin:10px 0px;
           flex:1;
-          margin:5px;
+          margin:5px 0px 5px;
+        }
+        .img-box{
+          margin-right:5px;
         }
         .video-box{
           flex:2;
@@ -50,6 +53,7 @@
           display:block;border:1px solid #2980b9;margin-bottom:5px;
           width:100%;
           object-fit: contain;
+          box-sizing: border-box;
         }
         .section{
           margin:5px 0px;
@@ -57,15 +61,21 @@
         .section label{
           text-decoration: uppercase;display:inline-block;margin-right:10px;
         }
-        .capture-monitor #view_holder{
+        .capture-monitor{
+          margin:5px 0px;
+          position: relative;
+        }
+        .capture-monitor .view-holder{
           display:flex;
           align-items:flex-start;
           margin-bottom: 10px;
         }
         .capture-monitor .panels{
           flex:1;
-          margin:0px 5px;
           border:1px solid #2980b9;
+        }
+        .capture-monitor .panels:not(:last-child){
+          margin-right:5px;
         }
         .capture-monitor .panels .items{
           height: 300px;
@@ -93,6 +103,24 @@
           white-space: nowrap;
           margin: 5px;
         }
+        .capture-monitor .start-btn{
+          position:absolute;
+          top:50%;
+          margin-top:-15px;
+          left:50%;
+          margin-left:-80px;
+          background: #2980b9;
+          padding: 10px;
+          border: 0px;
+          color: #FFF;
+          border-radius: 4px;
+          box-shadow: 2px 5px 6px 4px #cfcdcd;
+        }
+        .capture-monitor.started .start-btn,
+        .capture-monitor:not(.started) .stop-btn{
+          display:none;
+        }
+        button{cursor: pointer;}
     </style>
   </head>
   <body>
@@ -120,13 +148,13 @@
         <button onclick="window.$nwjs.end_desktop_media();">End Stream</button>
       </div>
     </div>
-    <div class="capture-monitor">
-      <div id="view_holder">
+    <div class="capture-monitor" id="monitor">
+      <div class="view-holder">
         <div class="panels window"><h1>Windows</h1><div class="items"></div></div>
         <div class="panels screen"><h1>Screens</h1><div class="items"></div></div>
       </div>
-      <button onclick="window.$nwjs.desktop_capture_monitor('view_holder');">Desktop capture monitor</button>
-      <button onclick="window.$nwjs.end_desktop_media();">End Stream</button>
+      <button class="start-btn" onclick="window.$nwjs.desktop_capture_monitor('video_el', 'monitor');">Desktop capture monitor</button>
+      <button class="stop-btn" onclick="window.$nwjs.stop_capture_monitor('monitor');">Stop capture monitor</button>
     </div>
     <div>Try Shortcut: ( Ctrl + Shift + Q ) : it will close App</div>
     <script>
