@@ -8,9 +8,8 @@ use workflow_dom::utils::window;
 use nw_sys::result::Result;
 use nw_sys::prelude::*;
 use workflow_nw::prelude::*;
-use workflow_wasm::listener::Listener;
+use workflow_wasm::listener::{Callback, CallbackClosure};
 use web_sys::HtmlVideoElement;
-use workflow_nw::app::Callback;
 use workflow_html::{html, Html, Render};
 
 static mut APP:Option<Arc<ExampleApp>> = None;
@@ -40,6 +39,10 @@ impl ExampleApp{
         };
 
         Ok(app)
+    }
+
+    fn test_sno(){
+        
     }
 
     fn create_window(&self)->Result<()>{
@@ -74,26 +77,26 @@ impl ExampleApp{
                 log_trace!("win.title: {}", win.title());
 
                 let win_clone = win.clone();
-                let mut listener = Listener::<dyn FnMut()->Result<()>>::new();
-                let listener_clone = listener.clone();
-                listener.callback(move || ->Result<()>{
+                let mut close_callback = Callback::<dyn FnMut()->Result<()>>::new();
+                let close_callback_clone = close_callback.clone();
+                close_callback.set_closure(move || ->Result<()>{
                     log_trace!("win.closed: {:?}", win_clone);
                     win_clone.close_with_force();
-                    let _a = listener_clone.clone();
+                    let _a = close_callback_clone.clone();
                     //remove this listener from app
                     Ok(())
                 });
 
                 let win_clone2 = win.clone();
-                let maximize_listener = Listener::<dyn FnMut()>::with_callback(move ||{
+                let maximize_callback = Callback::<dyn FnMut()>::with_closure(move ||{
                     log_trace!("win.maximize: {:?}", win_clone2);
                 });
 
-                win.on("close", listener.into_js());
-                win.on("maximize", maximize_listener.into_js());
+                win.on("close", close_callback.into_js());
+                win.on("maximize", maximize_callback.into_js());
 
-                inner.push_listener(listener)?;
-                inner.push_listener(maximize_listener)?;
+                inner.push_callback(close_callback)?;
+                inner.push_callback(maximize_callback)?;
 
                 Ok(())
             }
@@ -423,7 +426,7 @@ fn render_media(video_element_id:String, stream_id:String)->Result<()>{
 pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
-    let listener = Listener::<Callback<JsValue>>::with_callback(move |value:JsValue|->std::result::Result<(), JsValue>{
+    let callback = Callback::<CallbackClosure<JsValue>>::with_closure(move |value:JsValue|->std::result::Result<(), JsValue>{
         let mut stream_id = None;
         if value.is_string(){
             if let Some(id) = value.as_string(){
@@ -444,10 +447,10 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
 
     nw_sys::screen::choose_desktop_media(
         nw_sys::screen::MediaSources::ScreenAndWindow,
-        listener.into_js()
+        callback.into_js()
     )?;
 
-    app.inner.push_listener(listener)?;
+    app.inner.push_callback(callback)?;
 
     Ok(())
 }
@@ -470,8 +473,8 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     use nw_sys::screen::DesktopCaptureMonitor as dcm;
     let container = document().get_element_by_id(&container_id).unwrap();
     let view_holder = container.query_selector(".view-holder").unwrap().unwrap();
-    let mut cb = Listener::<dyn FnMut(String, String)->Result<()>>::new();
-    cb.callback(move |id, thumbnail|->Result<()>{
+    let mut cb = Callback::<dyn FnMut(String, String)->Result<()>>::new();
+    cb.set_closure(move |id, thumbnail|->Result<()>{
         //log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
 
         let panel_el = document().query_selector(&format!("#{} [data-id=\"{}\"]", &container_id, id)).unwrap();
@@ -484,11 +487,11 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     });
 
     dcm::on("thumbnailchanged", cb.into_js());
-    app.inner.push_listener(cb)?;
+    app.inner.push_callback(cb)?;
 
     let app_clone = app.clone();
-    let mut cb = Listener::<dyn FnMut(String, String, u16, String)->Result<()>>::new();
-    cb.callback(move |id:String, name:String, _order, w_type|->Result<()>{
+    let mut cb = Callback::<dyn FnMut(String, String, u16, String)->Result<()>>::new();
+    cb.set_closure(move |id:String, name:String, _order, w_type|->Result<()>{
         //log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, order, w_type);
         
         
@@ -538,16 +541,16 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     });
 
     dcm::on("added", cb.into_js());
-    app.inner.push_listener(cb)?;
+    app.inner.push_callback(cb)?;
 
-    let mut cb = Listener::<dyn FnMut(u16)->Result<()>>::new();
-    cb.callback(move |id|->Result<()>{
+    let mut cb = Callback::<dyn FnMut(u16)->Result<()>>::new();
+    cb.set_closure(move |id|->Result<()>{
         log_info!("removed: id:{:?}", id);
         Ok(())
     });
 
     dcm::on("removed", cb.into_js());
-    app.inner.push_listener(cb)?;
+    app.inner.push_callback(cb)?;
 
     dcm::start(true, true);
     log_info!("dcm::started(): {}", dcm::started());
