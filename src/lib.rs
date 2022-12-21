@@ -41,8 +41,10 @@ impl ExampleApp{
         Ok(app)
     }
 
-    fn test_sno(){
+    pub fn test_synopsis()->Result<()>{
         
+
+        Ok(())
     }
 
     fn create_window(&self)->Result<()>{
@@ -306,6 +308,12 @@ pub fn initialize()->Result<()>{
 }
 
 #[wasm_bindgen]
+pub fn test_synopsis()->Result<()>{
+    ExampleApp::test_synopsis()?;
+    Ok(())
+}
+
+#[wasm_bindgen]
 pub fn capture_window(image_id:String)->Result<()>{
     let options = nw_sys::window::CaptureConfig::new()
         .format("png");
@@ -470,7 +478,7 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
 
     nw_sys::screen::init_once();
 
-    use nw_sys::screen::DesktopCaptureMonitor as dcm;
+    use nw_sys::screen::desktop_capture_monitor as dcm;
     let container = document().get_element_by_id(&container_id).unwrap();
     let view_holder = container.query_selector(".view-holder").unwrap().unwrap();
     let mut cb = Callback::<dyn FnMut(String, String)->Result<()>>::new();
@@ -521,7 +529,7 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
             let id_clone = id.clone();
             let tree = html!{
                 <div class="panel" data-id={id} !click={
-                    let stream_id = nw_sys::screen::DesktopCaptureMonitor::register_stream(&id_clone);
+                    let stream_id = nw_sys::screen::desktop_capture_monitor::register_stream(&id_clone);
                     let _ = render_media(video_element_id.clone(), stream_id);
                 }>
                     <h2 class="title">{name}</h2>
@@ -561,7 +569,7 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
 
 #[wasm_bindgen]
 pub fn stop_capture_monitor(el:String)->Result<()>{
-    nw_sys::screen::DesktopCaptureMonitor::stop();
+    nw_sys::screen::desktop_capture_monitor::stop();
     document().get_element_by_id(&el).unwrap().class_list().remove_1("started")?;
 
     Ok(())
