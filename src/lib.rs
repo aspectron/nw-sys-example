@@ -81,7 +81,7 @@ impl ExampleApp{
                     log_trace!("win.closed: {:?}", win_clone);
                     win_clone.close_with_force();
                     let _a = close_callback_clone.clone();
-                    //remove this listener from app
+                    //remove this callback from app
                     Ok(())
                 });
 
@@ -464,11 +464,11 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
 
 
 #[wasm_bindgen]
-pub fn attach_notification_listeners()->Result<()>{
+pub fn attach_notification_callbacks()->Result<()>{
     let (app, _) = initialize_app()?;
     let app = &app.inner;
 
-    //create event listeners
+    //create event callbacks
     let clicked_cb = callback!(|id:String|{
         log_info!("Notification clicked: {id}");
     });
