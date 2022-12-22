@@ -174,7 +174,7 @@ impl ExampleApp{
         let exit_menu = MenuItemBuilder::new()
             .label("Exit")
             .callback(move |_|->std::result::Result<(), JsValue>{
-                window().alert_with_message("TODO: Exit")?;
+                nw_sys::app::close_all_windows();
                 Ok(())
             }).build()?;
 
