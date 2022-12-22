@@ -433,7 +433,6 @@ fn render_media(video_element_id:String, stream_id:String)->Result<()>{
 pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
-    // @surinder - any way to simplify this call signature? is it possible to determine JsValue for CallbackClosure from the return value?
     let callback = Callback::new(move |value:JsValue|->std::result::Result<(), JsValue>{
         let mut stream_id = None;
         if value.is_string(){
