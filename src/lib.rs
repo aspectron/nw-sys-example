@@ -7,10 +7,10 @@ use workflow_log::{log_trace, log_info};
 use workflow_dom::utils::window;
 use nw_sys::result::Result;
 use nw_sys::prelude::*;
-use workflow_nw::app::Listener;
+// use workflow_nw::app::Callback;
 use workflow_nw::prelude::*;
 use workflow_wasm::timers::{set_interval, IntervalHandle};
-use workflow_wasm::listener::{Callback, CallbackClosure};
+use workflow_wasm::callback::{Callback, CallbackClosure, AsCallback};
 use web_sys::HtmlVideoElement;
 use workflow_html::{html, Html, Render};
 use nw_sys::chrome::notifications;
@@ -20,7 +20,7 @@ static mut APP:Option<Arc<ExampleApp>> = None;
 
 #[derive(Clone)]
 pub struct ExampleApp{
-    pub inner: Arc<App>,
+    pub inner: Arc<Application>,
     pub htmls: Arc<Mutex<Vec<Html>>>,
     pub interval_handle: Arc<Mutex<Option<IntervalHandle>>>,
 }
@@ -34,7 +34,7 @@ impl ExampleApp{
         } 
 
         let app = Arc::new(Self{
-            inner: App::new()?,
+            inner: Application::new()?,
             htmls: Arc::new(Mutex::new(Vec::new())),
             interval_handle: Arc::new(Mutex::new(None)),
         });
@@ -83,7 +83,7 @@ impl ExampleApp{
                 log_trace!("win.title: {}", win.title());
 
                 let win_clone = win.clone();
-                let mut close_callback = Callback::<dyn FnMut()->Result<()>>::new();
+                let mut close_callback = Callback::<dyn FnMut()->Result<()>>::default();
                 let close_callback_clone = close_callback.clone();
                 close_callback.set_closure(move || ->Result<()>{
                     log_trace!("win.closed: {:?}", win_clone);
@@ -94,15 +94,18 @@ impl ExampleApp{
                 });
 
                 let win_clone2 = win.clone();
-                let maximize_callback = Callback::<dyn FnMut()>::with_closure(move ||{
+                let maximize_callback = Callback::<dyn FnMut()>::new(move ||{
+                // let maximize_callback = Callback::new(move ||{
                     log_trace!("win.maximize: {:?}", win_clone2);
                 });
 
-                win.on("close", close_callback.into_js());
-                win.on("maximize", maximize_callback.into_js());
+                // win.on("close", close_callback.into_js());
+                // win.on("maximize", maximize_callback.into_js());
+                win.on("close", close_callback.as_ref());
+                win.on("maximize", maximize_callback.as_ref());
 
-                inner.push_callback(close_callback)?;
-                inner.push_callback(maximize_callback)?;
+                inner.callbacks.insert(close_callback)?;
+                inner.callbacks.insert(maximize_callback)?;
 
                 Ok(())
             }
@@ -439,7 +442,9 @@ fn render_media(video_element_id:String, stream_id:String)->Result<()>{
 pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
-    let callback = Callback::<CallbackClosure<JsValue>>::with_closure(move |value:JsValue|->std::result::Result<(), JsValue>{
+    // @surinder - any way to simplify this call signature? is it possible to determine JsValue for CallbackClosure from the return value?
+    let callback = Callback::<CallbackClosure<JsValue>>::new(move |value:JsValue|->std::result::Result<(), JsValue>{
+    // let callback = Callback::new(move |value:JsValue|->std::result::Result<(), JsValue>{
         let mut stream_id = None;
         if value.is_string(){
             if let Some(id) = value.as_string(){
@@ -463,7 +468,7 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
         callback.into_js()
     )?;
 
-    app.inner.push_callback(callback)?;
+    app.inner.callbacks.insert(callback)?;
 
     Ok(())
 }
@@ -475,24 +480,24 @@ pub fn attach_notification_listeners()->Result<()>{
     let app = &app.inner;
 
     //create event listeners
-    let clicked_cb = Callback::<dyn FnMut(String)>::with_closure(|id|{
+    let clicked_cb = Callback::<dyn FnMut(String)>::new(|id|{
         log_info!("Notification clicked: {id}");
     });
     notifications::on_clicked(clicked_cb.into_js());
 
-    let button_click_cb = Callback::<dyn FnMut(String, u16)>::with_closure(|id, btn_index|{
+    let button_click_cb = Callback::<dyn FnMut(String, u16)>::new(|id, btn_index|{
         log_info!("Notification button clicked: {id}, {btn_index}");
     });
     notifications::on_button_clicked(button_click_cb.into_js());
 
-    let closed_cb = Callback::<dyn FnMut(String, bool)>::with_closure(|id, by_user|{
+    let closed_cb = Callback::<dyn FnMut(String, bool)>::new(|id, by_user|{
         log_info!("Notification closed: {id}, {by_user}");
     });
     notifications::on_closed(closed_cb.into_js());
 
-    app.push_callback(clicked_cb)?;
-    app.push_callback(button_click_cb)?;
-    app.push_callback(closed_cb)?;
+    app.callbacks.insert(clicked_cb)?;
+    app.callbacks.insert(button_click_cb)?;
+    app.callbacks.insert(closed_cb)?;
 
     Ok(())
 }
@@ -509,12 +514,12 @@ pub fn basic_notification()->Result<()>{
         .message("Message Text")
         .context_message("Context Message");
 
-    let cb = Callback::<dyn FnMut(String)>::with_closure(|v|{
+    let cb = Callback::<dyn FnMut(String)>::new(|v|{
         log_info!("notification create callback, id: {:?}", v)
     });
     notifications::create(None, &options, Some(cb.into_js()));
 
-    app.inner.push_callback(cb)?;
+    app.inner.callbacks.insert(cb)?;
 
     Ok(())
 }
@@ -594,7 +599,7 @@ pub fn notification_with_progress()->Result<()>{
     notifications::create(Some(noti_id.clone()), &options, None);
 
     let app_clone = app.clone();
-    let mut cb = Callback::<dyn FnMut()>::new();
+    let mut cb = Callback::<dyn FnMut()>::default();
     let cb_id = cb.get_id();
     cb.set_closure(move ||{
         progress += 10;
@@ -602,14 +607,14 @@ pub fn notification_with_progress()->Result<()>{
         let options = options.clone().progress(progress);
         notifications::update(&noti_id, &options, None);
         if progress == 100{
-            let _ = app_clone.inner.remove_callback(&cb_id);
+            let _ = app_clone.inner.callbacks.remove(&cb_id);
             *app_clone.interval_handle.lock().unwrap() = None;
         }
     });
 
     let h = set_interval(cb.closure().unwrap().as_ref(), 1000).unwrap();
     *app.interval_handle.lock().unwrap() = Some(h);
-    app.inner.push_callback(cb)?;
+    app.inner.callbacks.insert(cb)?;
 
     Ok(())
 }
@@ -632,7 +637,7 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     let container = document().get_element_by_id(&container_id).unwrap();
     let container_id_clone = container_id.clone();
     let view_holder = container.query_selector(".view-holder").unwrap().unwrap();
-    let mut cb = Callback::<dyn FnMut(String, String)->Result<()>>::new();
+    let mut cb = Callback::<dyn FnMut(String, String)->Result<()>>::default();
     cb.set_closure(move |id, thumbnail|->Result<()>{
         //log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
 
@@ -646,11 +651,11 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     });
 
     dcm::on("thumbnailchanged", cb.into_js());
-    app.inner.push_callback(cb)?;
+    app.inner.callbacks.insert(cb)?;
 
     let app_clone = app.clone();
     
-    let mut cb = Callback::<dyn FnMut(String, String, u16, String)->Result<()>>::new();
+    let mut cb = Callback::<dyn FnMut(String, String, u16, String)->Result<()>>::default();
     cb.set_closure(move |id:String, name:String, _order, w_type|->Result<()>{
         log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, _order, w_type);
         
@@ -702,16 +707,16 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     });
 
     dcm::on("added", cb.into_js());
-    app.inner.push_callback(cb)?;
+    app.inner.callbacks.insert(cb)?;
 
-    let mut cb = Callback::<dyn FnMut(u16)->Result<()>>::new();
+    let mut cb = Callback::<dyn FnMut(u16)->Result<()>>::default();
     cb.set_closure(move |id|->Result<()>{
         log_info!("removed: id:{:?}", id);
         Ok(())
     });
 
     dcm::on("removed", cb.into_js());
-    app.inner.push_callback(cb)?;
+    app.inner.callbacks.insert(cb)?;
 
     dcm::start(true, true);
     log_info!("dcm::started(): {}", dcm::started());
