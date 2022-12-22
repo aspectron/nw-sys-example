@@ -1,7 +1,7 @@
 use wasm_bindgen::{prelude::*, JsCast};
 use workflow_log::{log_error, log_trace, log_info};
 use workflow_dom::utils::window;
-use nw_sys::{prelude::*, result::Result, chrome::notifications, utils::document};
+use nw_sys::{prelude::*, result::Result, notifications, utils::document};
 use workflow_nw::prelude::*;
 use workflow_wasm::prelude::*;
 use web_sys::HtmlVideoElement;
@@ -502,7 +502,7 @@ pub fn basic_notification()->Result<()>{
     let options = notifications::Options::new()
         .title("Title text")
         .icon_url("/resources/icons/tray-icon@2x.png")
-        .set_type(nw_sys::chrome::notifications::TemplateType::Basic)
+        .set_type(notifications::TemplateType::Basic)
         .message("Message Text")
         .context_message("Context Message");
 
@@ -530,7 +530,7 @@ pub fn notification_with_buttons(){
     let options = notifications::Options::new()
         .title("Title text")
         .icon_url("/resources/icons/tray-icon@2x.png")
-        .set_type(nw_sys::chrome::notifications::TemplateType::Basic)
+        .set_type(notifications::TemplateType::Basic)
         .message("Message Text")
         .buttons(vec![button1, button2]);
 
@@ -543,7 +543,7 @@ pub fn notification_with_image(){
     let options = notifications::Options::new()
         .title("Title text")
         .icon_url("/resources/icons/tray-icon@2x.png")
-        .set_type(nw_sys::chrome::notifications::TemplateType::Image)
+        .set_type(notifications::TemplateType::Image)
         .message("Message Text")
         .image_url("/resources/setup/document.png");
 
@@ -564,7 +564,7 @@ pub fn notification_with_items(){
     let options = notifications::Options::new()
         .title("Title text")
         .icon_url("/resources/icons/tray-icon@2x.png")
-        .set_type(nw_sys::chrome::notifications::TemplateType::List)
+        .set_type(notifications::TemplateType::List)
         .message("Message Text")
         .items(vec![item1, item2]);
 
@@ -580,7 +580,7 @@ pub fn notification_with_progress()->Result<()>{
     let options = notifications::Options::new()
         .title("Title text")
         .icon_url("/resources/icons/tray-icon@2x.png")
-        .set_type(nw_sys::chrome::notifications::TemplateType::Progress)
+        .set_type(notifications::TemplateType::Progress)
         .message("Mesage text")
         .progress(progress);
 
