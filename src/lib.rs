@@ -1,19 +1,11 @@
-
-use nw_sys::utils::document;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::prelude::*;
-use workflow_log::log_error;
-use workflow_log::{log_trace, log_info};
+use wasm_bindgen::{prelude::*, JsCast};
+use workflow_log::{log_error, log_trace, log_info};
 use workflow_dom::utils::window;
-use nw_sys::result::Result;
-use nw_sys::prelude::*;
-// use workflow_nw::app::Callback;
+use nw_sys::{prelude::*, result::Result, chrome::notifications, utils::document};
 use workflow_nw::prelude::*;
-use workflow_wasm::timers::{set_interval, IntervalHandle};
-use workflow_wasm::callback::{Callback, CallbackClosure, AsCallback};
+use workflow_wasm::prelude::*;
 use web_sys::HtmlVideoElement;
 use workflow_html::{html, Html, Render};
-use nw_sys::chrome::notifications;
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 
@@ -94,8 +86,7 @@ impl ExampleApp{
                 });
 
                 let win_clone2 = win.clone();
-                let maximize_callback = Callback::<dyn FnMut()>::new(move ||{
-                // let maximize_callback = Callback::new(move ||{
+                let maximize_callback = callback!(move ||{
                     log_trace!("win.maximize: {:?}", win_clone2);
                 });
 
@@ -443,8 +434,7 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
     // @surinder - any way to simplify this call signature? is it possible to determine JsValue for CallbackClosure from the return value?
-    let callback = Callback::<CallbackClosure<JsValue>>::new(move |value:JsValue|->std::result::Result<(), JsValue>{
-    // let callback = Callback::new(move |value:JsValue|->std::result::Result<(), JsValue>{
+    let callback = Callback::new(move |value:JsValue|->std::result::Result<(), JsValue>{
         let mut stream_id = None;
         if value.is_string(){
             if let Some(id) = value.as_string(){
@@ -480,20 +470,23 @@ pub fn attach_notification_listeners()->Result<()>{
     let app = &app.inner;
 
     //create event listeners
-    let clicked_cb = Callback::<dyn FnMut(String)>::new(|id|{
+    let clicked_cb = Callback::new(|id:String|{
         log_info!("Notification clicked: {id}");
     });
     notifications::on_clicked(clicked_cb.into_js());
 
-    let button_click_cb = Callback::<dyn FnMut(String, u16)>::new(|id, btn_index|{
+    let button_click_cb = callback!(|id:String, btn_index:u16|{
         log_info!("Notification button clicked: {id}, {btn_index}");
     });
     notifications::on_button_clicked(button_click_cb.into_js());
 
-    let closed_cb = Callback::<dyn FnMut(String, bool)>::new(|id, by_user|{
+    let closed_cb = callback!(|id:String, by_user:bool|{
         log_info!("Notification closed: {id}, {by_user}");
     });
-    notifications::on_closed(closed_cb.into_js());
+    notifications::on_closed(closed_cb.as_ref());
+
+    //let callback_js_value: JsValue = closed_cb.clone().into();
+    //log_info!("callback_js_value: {:?}", callback_js_value);
 
     app.callbacks.insert(clicked_cb)?;
     app.callbacks.insert(button_click_cb)?;
@@ -514,7 +507,7 @@ pub fn basic_notification()->Result<()>{
         .message("Message Text")
         .context_message("Context Message");
 
-    let cb = Callback::<dyn FnMut(String)>::new(|v|{
+    let cb = Callback::new(|v:String|{
         log_info!("notification create callback, id: {:?}", v)
     });
     notifications::create(None, &options, Some(cb.into_js()));
