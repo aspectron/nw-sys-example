@@ -7,18 +7,22 @@ use workflow_log::{log_trace, log_info};
 use workflow_dom::utils::window;
 use nw_sys::result::Result;
 use nw_sys::prelude::*;
+use workflow_nw::app::Listener;
 use workflow_nw::prelude::*;
+use workflow_wasm::timers::{set_interval, IntervalHandle};
 use workflow_wasm::listener::{Callback, CallbackClosure};
 use web_sys::HtmlVideoElement;
 use workflow_html::{html, Html, Render};
+use nw_sys::chrome::notifications;
 
 static mut APP:Option<Arc<ExampleApp>> = None;
 
 
 #[derive(Clone)]
 pub struct ExampleApp{
-    pub inner:Arc<App>,
-    pub htmls:Arc<Mutex<Vec<Html>>>
+    pub inner: Arc<App>,
+    pub htmls: Arc<Mutex<Vec<Html>>>,
+    pub interval_handle: Arc<Mutex<Option<IntervalHandle>>>,
 }
 
 
@@ -31,7 +35,8 @@ impl ExampleApp{
 
         let app = Arc::new(Self{
             inner: App::new()?,
-            htmls: Arc::new(Mutex::new(Vec::new()))
+            htmls: Arc::new(Mutex::new(Vec::new())),
+            interval_handle: Arc::new(Mutex::new(None)),
         });
 
         unsafe{
@@ -42,7 +47,7 @@ impl ExampleApp{
     }
 
     pub fn test_synopsis(&self)->Result<()>{
-        
+
         Ok(())
     }
 
@@ -463,6 +468,151 @@ pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     Ok(())
 }
 
+
+#[wasm_bindgen]
+pub fn attach_notification_listeners()->Result<()>{
+    let (app, _) = initialize_app()?;
+    let app = &app.inner;
+
+    //create event listeners
+    let clicked_cb = Callback::<dyn FnMut(String)>::with_closure(|id|{
+        log_info!("Notification clicked: {id}");
+    });
+    notifications::on_clicked(clicked_cb.into_js());
+
+    let button_click_cb = Callback::<dyn FnMut(String, u16)>::with_closure(|id, btn_index|{
+        log_info!("Notification button clicked: {id}, {btn_index}");
+    });
+    notifications::on_button_clicked(button_click_cb.into_js());
+
+    let closed_cb = Callback::<dyn FnMut(String, bool)>::with_closure(|id, by_user|{
+        log_info!("Notification closed: {id}, {by_user}");
+    });
+    notifications::on_closed(closed_cb.into_js());
+
+    app.push_callback(clicked_cb)?;
+    app.push_callback(button_click_cb)?;
+    app.push_callback(closed_cb)?;
+
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn basic_notification()->Result<()>{
+    let (app, _) = initialize_app()?;
+
+    // Create basic notification
+    let options = notifications::Options::new()
+        .title("Title text")
+        .icon_url("/resources/icons/tray-icon@2x.png")
+        .set_type(nw_sys::chrome::notifications::TemplateType::Basic)
+        .message("Message Text")
+        .context_message("Context Message");
+
+    let cb = Callback::<dyn FnMut(String)>::with_closure(|v|{
+        log_info!("notification create callback, id: {:?}", v)
+    });
+    notifications::create(None, &options, Some(cb.into_js()));
+
+    app.inner.push_callback(cb)?;
+
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn notification_with_buttons(){
+    // Create notification with buttons
+    let button1 = notifications::Button::new()
+        .title("Button A")
+        .icon_url("/resources/icons/tray-icon@2x.png");
+
+    let button2 = notifications::Button::new()
+        .title("Button B")
+        .icon_url("/resources/icons/tray-icon@2x.png");
+
+    let options = notifications::Options::new()
+        .title("Title text")
+        .icon_url("/resources/icons/tray-icon@2x.png")
+        .set_type(nw_sys::chrome::notifications::TemplateType::Basic)
+        .message("Message Text")
+        .buttons(vec![button1, button2]);
+
+    notifications::create(None, &options, None);
+}
+
+#[wasm_bindgen]
+pub fn notification_with_image(){
+    // Create image notification
+    let options = notifications::Options::new()
+        .title("Title text")
+        .icon_url("/resources/icons/tray-icon@2x.png")
+        .set_type(nw_sys::chrome::notifications::TemplateType::Image)
+        .message("Message Text")
+        .image_url("/resources/setup/document.png");
+
+    notifications::create(None, &options, None);
+}
+
+#[wasm_bindgen]
+pub fn notification_with_items(){
+    // Create notification with items
+
+    let item1 = notifications::Item::new()
+        .title("Item A")
+        .message("Mesage A");
+    let item2 = notifications::Item::new()
+        .title("Item B")
+        .message("Mesage B");
+
+    let options = notifications::Options::new()
+        .title("Title text")
+        .icon_url("/resources/icons/tray-icon@2x.png")
+        .set_type(nw_sys::chrome::notifications::TemplateType::List)
+        .message("Message Text")
+        .items(vec![item1, item2]);
+
+    notifications::create(None, &options, None);
+}
+
+#[wasm_bindgen]
+pub fn notification_with_progress()->Result<()>{
+    let (app, _) = initialize_app()?;
+
+    // Create notification with progress
+    let mut progress = 50;
+    let options = notifications::Options::new()
+        .title("Title text")
+        .icon_url("/resources/icons/tray-icon@2x.png")
+        .set_type(nw_sys::chrome::notifications::TemplateType::Progress)
+        .message("Mesage text")
+        .progress(progress);
+
+    static mut ID:u16 = 0;
+    let noti_id = format!("{:?}", unsafe{ID+=1; ID});
+    log_info!("noti_id: {noti_id}");
+
+    notifications::create(Some(noti_id.clone()), &options, None);
+
+    let app_clone = app.clone();
+    let mut cb = Callback::<dyn FnMut()>::new();
+    let cb_id = cb.get_id();
+    cb.set_closure(move ||{
+        progress += 10;
+        log_info!("progress: {progress}");
+        let options = options.clone().progress(progress);
+        notifications::update(&noti_id, &options, None);
+        if progress == 100{
+            let _ = app_clone.inner.remove_callback(&cb_id);
+            *app_clone.interval_handle.lock().unwrap() = None;
+        }
+    });
+
+    let h = set_interval(cb.closure().unwrap().as_ref(), 1000).unwrap();
+    *app.interval_handle.lock().unwrap() = Some(h);
+    app.inner.push_callback(cb)?;
+
+    Ok(())
+}
 
 #[wasm_bindgen]
 pub fn end_desktop_media()->Result<()>{

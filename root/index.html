@@ -134,6 +134,15 @@
       <button onclick="window.$nwjs.test_shell_open_item();">Open Item</button>
       <button onclick="window.$nwjs.test_shell_show_item();">Show Item</button>
     </div>
+    <div class="section">
+      <label>Notifications :</label>
+      <button onclick="window.$nwjs.attach_notification_listeners();">Add Listeners</button>
+      <button onclick="window.$nwjs.basic_notification();">Basic</button>
+      <button onclick="window.$nwjs.notification_with_buttons();">With buttons</button>
+      <button onclick="window.$nwjs.notification_with_image();">With image</button>
+      <button onclick="window.$nwjs.notification_with_items();">With items</button>
+      <button onclick="window.$nwjs.notification_with_progress();">With progress</button>
+    </div>
     <div class="media-boxes">
       <div class="img-box">
         <img id="image_el" height="200"
@@ -159,6 +168,22 @@
     <div>Try Shortcut: ( Ctrl + Shift + Q ) : it will close App</div>
     <button onclick="window.$nwjs.test_synopsis()">Test Synopsis</button>
     <script>
+      let notify = ()=>{
+        /*
+        var noti = new Notification("foo title", {
+          body:"sss",
+          
+        });
+        console.log("noti", noti)
+        */
+
+        chrome.notifications.create("id123", {
+          title:"Hello",
+          type:"basic",
+          iconUrl:"/resources/icons/tray-icon@2x.png",
+          message:"Hello"
+        })
+      }
       (async()=>{
         window.$nwjs = await import('/root/wasm/nwjs.js');
         const wasm = await window.$nwjs.default('/root/wasm/nwjs_bg.wasm');
