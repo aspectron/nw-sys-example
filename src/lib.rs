@@ -469,7 +469,7 @@ pub fn attach_notification_listeners()->Result<()>{
     let app = &app.inner;
 
     //create event listeners
-    let clicked_cb = Callback::new(|id:String|{
+    let clicked_cb = callback!(|id:String|{
         log_info!("Notification clicked: {id}");
     });
     notifications::on_clicked(clicked_cb.into_js());
