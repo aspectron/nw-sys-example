@@ -143,7 +143,7 @@ impl ExampleApp{
     }
 
     pub fn create_tray_icon(&self)->Result<()>{
-        let _tray = TrayIconBuilder::new()
+        let _tray = TrayMenuBuilder::new()
             .icon("resources/icons/tray-icon@2x.png")
             .icons_are_templates(false)
             .callback(|_|{
@@ -172,7 +172,7 @@ impl ExampleApp{
                 Ok(())
             }).build()?;
 
-        let _tray = TrayIconBuilder::new()
+        let _tray = TrayMenuBuilder::new()
             .icon("resources/icons/tray-icon@2x.png")
             .icons_are_templates(false)
             .submenus(vec![submenu_1, menu_separator(), exit_menu])
