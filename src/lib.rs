@@ -1,10 +1,9 @@
 use wasm_bindgen::{prelude::*, JsCast};
-use workflow_log::{log_error, log_trace, log_info};
+use workflow_log::{log_trace, log_info};
 use workflow_dom::utils::window;
 use nw_sys::{prelude::*, result::Result, notifications, utils::document};
 use workflow_nw::prelude::*;
 use workflow_wasm::prelude::*;
-use web_sys::HtmlVideoElement;
 use workflow_html::{html, Html, Render};
 
 static mut APP:Option<Arc<ExampleApp>> = None;
@@ -404,28 +403,16 @@ fn render_media(video_element_id:String, stream_id:String)->Result<()>{
         .source_id(&stream_id)
         .max_height(1000);
 
-    let video_el_id = video_element_id.clone();
-    workflow_nw::media::get_user_media(
+    workflow_nw::media::render_media(
+        video_element_id,
         video_constraints,
         None,
-        Arc::new(move |value|{
-            //log_info!("get_user_media result: {:?}", value);
-
-            if let Some(media_stream) = value{
-                let el = document().get_element_by_id(&video_el_id).unwrap();
-                match el.dyn_into::<HtmlVideoElement>(){
-                    Ok(el)=>{
-                        el.set_src_object(Some(&media_stream));
-                    }
-                    Err(err)=>{
-                        log_error!("Unable to cast element to HtmlVideoElement: element = {:?}", err);
-                    }
-                }
-
-                let _ = app.inner.set_media_stream(Some(media_stream));
-            }
-        })
+        move |stream|->nw_sys::result::Result<()>{
+            app.inner.set_media_stream(stream)?;
+            Ok(())
+        }
     )?;
+
     Ok(())
 }
 
@@ -433,31 +420,15 @@ fn render_media(video_element_id:String, stream_id:String)->Result<()>{
 pub fn choose_desktop_media(video_element_id:String)->Result<()>{
     let (app, _) = initialize_app()?;
 
-    let callback = Callback::new(move |value:JsValue|->std::result::Result<(), JsValue>{
-        let mut stream_id = None;
-        if value.is_string(){
-            if let Some(id) = value.as_string(){
-                if id.len() > 0{
-                    stream_id = Some(id);
-                }
-            }
-        }
-
-        if let Some(stream_id) = stream_id{
-            render_media(video_element_id.clone(), stream_id)?;
-        }else{
-            log_info!("no stream_id"); 
-        }
-        
-        Ok(())
-    });
-
-    nw_sys::screen::choose_desktop_media(
+    app.inner.choose_desktop_media(
         nw_sys::screen::MediaSources::ScreenAndWindow,
-        callback.into_js()
+        move |stream_id: Option<String>|->nw_sys::result::Result<()>{
+            if let Some(stream_id) = stream_id{
+                render_media(video_element_id.clone(), stream_id)?;
+            }
+            Ok(())
+        }
     )?;
-
-    app.inner.callbacks.insert(callback)?;
 
     Ok(())
 }
