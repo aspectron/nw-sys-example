@@ -1,48 +1,44 @@
+use nw_sys::{notifications, prelude::*, result::Result, utils::document};
 use wasm_bindgen::{prelude::*, JsCast};
-use workflow_log::{log_trace, log_info};
 use workflow_dom::utils::window;
-use nw_sys::{prelude::*, result::Result, notifications, utils::document};
+use workflow_html::{html, Html, Render};
+use workflow_log::{log_info, log_trace};
 use workflow_nw::prelude::*;
 use workflow_wasm::prelude::*;
-use workflow_html::{html, Html, Render};
 
-static mut APP:Option<Arc<ExampleApp>> = None;
-
+static mut APP: Option<Arc<ExampleApp>> = None;
 
 #[derive(Clone)]
-pub struct ExampleApp{
+pub struct ExampleApp {
     pub inner: Arc<Application>,
     pub htmls: Arc<Mutex<Vec<Html>>>,
     pub interval_handle: Arc<Mutex<Option<IntervalHandle>>>,
 }
 
-
-impl ExampleApp{
-    fn new()->Result<Arc<Self>>{
-
-        if let Some(app) = app(){
+impl ExampleApp {
+    fn new() -> Result<Arc<Self>> {
+        if let Some(app) = app() {
             return Ok(app);
-        } 
+        }
 
-        let app = Arc::new(Self{
+        let app = Arc::new(Self {
             inner: Application::new()?,
             htmls: Arc::new(Mutex::new(Vec::new())),
             interval_handle: Arc::new(Mutex::new(None)),
         });
 
-        unsafe{
+        unsafe {
             APP = Some(app.clone());
         };
 
         Ok(app)
     }
 
-    pub fn test_synopsis(&self)->Result<()>{
-
+    pub fn test_synopsis(&self) -> Result<()> {
         Ok(())
     }
 
-    fn create_window(&self)->Result<()>{
+    fn create_window(&self) -> Result<()> {
         let options = nw_sys::window::Options::new()
             .title("Test page")
             .width(200)
@@ -53,9 +49,9 @@ impl ExampleApp{
 
         let inner = self.inner.clone();
         self.inner.create_window_with_callback(
-            "/root/page2.html", 
+            "/root/page2.html",
             &options,
-            move |win|->std::result::Result<(), JsValue>{
+            move |win| -> std::result::Result<(), JsValue> {
                 log_trace!("win: {:?}", win);
                 log_trace!("win.x: {:?}", win.x());
                 win.move_by(300, 0);
@@ -74,9 +70,9 @@ impl ExampleApp{
                 log_trace!("win.title: {}", win.title());
 
                 let win_clone = win.clone();
-                let mut close_callback = Callback::<dyn FnMut()->Result<()>>::default();
+                let mut close_callback = Callback::<dyn FnMut() -> Result<()>>::default();
                 let close_callback_clone = close_callback.clone();
-                close_callback.set_closure(move || ->Result<()>{
+                close_callback.set_closure(move || -> Result<()> {
                     log_trace!("win.closed: {:?}", win_clone);
                     win_clone.close_with_force();
                     let _a = close_callback_clone.clone();
@@ -85,7 +81,7 @@ impl ExampleApp{
                 });
 
                 let win_clone2 = win.clone();
-                let maximize_callback = callback!(move ||{
+                let maximize_callback = callback!(move || {
                     log_trace!("win.maximize: {:?}", win_clone2);
                 });
 
@@ -98,54 +94,54 @@ impl ExampleApp{
                 inner.callbacks.insert(maximize_callback)?;
 
                 Ok(())
-            }
+            },
         )?;
 
         Ok(())
     }
 
-    fn create_menu(&self)->Result<()>{
-
+    fn create_menu(&self) -> Result<()> {
         let this = self.clone();
         let submenu_1 = MenuItemBuilder::new()
             .label("Create window")
             .key("8")
             .modifiers("ctrl")
-            .callback(move |_|->std::result::Result<(), JsValue>{
+            .callback(move |_| -> std::result::Result<(), JsValue> {
                 log_trace!("Create window : menu clicked");
                 this.create_window()?;
                 Ok(())
-            }).build()?;
-        
+            })
+            .build()?;
+
         let submenu_2 = MenuItemBuilder::new()
             .label("Say hello")
             .key("9")
             .modifiers("ctrl")
-            .callback(move |_|->std::result::Result<(), JsValue>{
+            .callback(move |_| -> std::result::Result<(), JsValue> {
                 window().alert_with_message("Hello")?;
                 Ok(())
-            }).build()?;
-        
+            })
+            .build()?;
+
         let item = MenuItemBuilder::new()
             .label("Top Menu")
             .submenus(vec![submenu_1, menu_separator(), submenu_2])
             .build()?;
 
-        
         MenubarBuilder::new("Example App")
             //.mac_hide_edit(true)
             .mac_hide_window(true)
             .append(item)
             .build(true)?;
-        
+
         Ok(())
     }
 
-    pub fn create_tray_icon(&self)->Result<()>{
+    pub fn create_tray_icon(&self) -> Result<()> {
         let _tray = TrayMenuBuilder::new()
             .icon("resources/icons/tray-icon@2x.png")
             .icons_are_templates(false)
-            .callback(|_|{
+            .callback(|_| {
                 window().alert_with_message("Tray Icon click")?;
                 Ok(())
             })
@@ -153,23 +149,24 @@ impl ExampleApp{
         Ok(())
     }
 
-    pub fn create_tray_icon_with_menu(&self)->Result<()>{
-
+    pub fn create_tray_icon_with_menu(&self) -> Result<()> {
         let submenu_1 = MenuItemBuilder::new()
             .label("Say hi")
             .key("6")
             .modifiers("ctrl")
-            .callback(move |_|->std::result::Result<(), JsValue>{
+            .callback(move |_| -> std::result::Result<(), JsValue> {
                 window().alert_with_message("hi")?;
                 Ok(())
-            }).build()?;
+            })
+            .build()?;
 
         let exit_menu = MenuItemBuilder::new()
             .label("Exit")
-            .callback(move |_|->std::result::Result<(), JsValue>{
+            .callback(move |_| -> std::result::Result<(), JsValue> {
                 nw_sys::app::close_all_windows();
                 Ok(())
-            }).build()?;
+            })
+            .build()?;
 
         let _tray = TrayMenuBuilder::new()
             .icon("resources/icons/tray-icon@2x.png")
@@ -180,33 +177,32 @@ impl ExampleApp{
         Ok(())
     }
 
-    pub fn create_context_menu(self:Arc<Self>)->Result<()>{
-
+    pub fn create_context_menu(self: Arc<Self>) -> Result<()> {
         let item_1 = MenuItemBuilder::new()
             .label("Sub Menu 1")
-            .callback(move |_|->std::result::Result<(), JsValue>{
+            .callback(move |_| -> std::result::Result<(), JsValue> {
                 window().alert_with_message("Context menu 1 clicked")?;
                 Ok(())
-            }).build()?;
+            })
+            .build()?;
 
         let item_2 = MenuItemBuilder::new()
             .label("Sub Menu 2")
-            .callback(move |_|->std::result::Result<(), JsValue>{
+            .callback(move |_| -> std::result::Result<(), JsValue> {
                 window().alert_with_message("Context menu 2 clicked")?;
                 Ok(())
-            }).build()?;
-
+            })
+            .build()?;
 
         self.inner.create_context_menu(vec![item_1, item_2])?;
 
         Ok(())
     }
 
-    fn add_shortcut(&self)->Result<()>{
-        
+    fn add_shortcut(&self) -> Result<()> {
         let shortcut = ShortcutBuilder::new()
             .key("Ctrl+Shift+Q")
-            .active(|_|{
+            .active(|_| {
                 window().alert_with_message("Ctrl+Shift+Q pressed, App will close")?;
                 //nw_sys::app::quit();
                 nw_sys::app::close_all_windows();
@@ -215,25 +211,24 @@ impl ExampleApp{
             .build()?;
 
         nw_sys::app::register_global_hot_key(&shortcut);
-        
 
         Ok(())
     }
 
-    fn test_app_functions()->Result<()>{
+    fn test_app_functions() -> Result<()> {
         log_info!("nw_sys::app::start_path(): {:?}", nw_sys::app::start_path());
         log_info!("nw_sys::app::data_path(): {:?}", nw_sys::app::data_path());
         log_info!("nw_sys::app::manifest(): {:?}", nw_sys::app::manifest());
-        
+
         let argv = nw_sys::app::argv()?;
         log_info!("argv: {:?}", argv);
         let full_argv = nw_sys::app::full_argv()?;
         log_info!("full_argv: {:?}", full_argv);
         let filtered_argv = nw_sys::app::filtered_argv()?;
         log_info!("filtered_argv: {:?}", filtered_argv);
-        let list:Vec<js_sys::JsString> = filtered_argv.iter().map(|a| a.to_string()).collect();
+        let list: Vec<js_sys::JsString> = filtered_argv.iter().map(|a| a.to_string()).collect();
         log_info!("filtered_argv as Vec<js_sys::JsString>: {:?}", list);
-        
+
         /*
         for a in filtered_argv{
             log_info!("\nregexp: {}", a.to_string());
@@ -244,17 +239,16 @@ impl ExampleApp{
 
         Ok(())
     }
-
 }
 
-fn app()->Option<Arc<ExampleApp>>{
-    unsafe{APP.clone()}
+fn app() -> Option<Arc<ExampleApp>> {
+    unsafe { APP.clone() }
 }
 
 #[wasm_bindgen]
-pub fn create_context_menu()->Result<()>{
+pub fn create_context_menu() -> Result<()> {
     let (app, is_nw) = initialize_app()?;
-    if !is_nw{
+    if !is_nw {
         log_info!("TODO: initialize web-app");
         return Ok(());
     }
@@ -262,8 +256,7 @@ pub fn create_context_menu()->Result<()>{
     Ok(())
 }
 
-
-fn initialize_app()->Result<(Arc<ExampleApp>, bool)>{
+fn initialize_app() -> Result<(Arc<ExampleApp>, bool)> {
     let is_nw = nw_sys::is_nw();
 
     let app = ExampleApp::new()?;
@@ -271,9 +264,9 @@ fn initialize_app()->Result<(Arc<ExampleApp>, bool)>{
 }
 
 #[wasm_bindgen]
-pub fn initialize()->Result<()>{
+pub fn initialize() -> Result<()> {
     let (app, is_nw) = initialize_app()?;
-    if !is_nw{
+    if !is_nw {
         log_info!("TODO: initialize web-app");
         return Ok(());
     }
@@ -284,10 +277,10 @@ pub fn initialize()->Result<()>{
             .new_instance(false)
             .width(1040)
             .height(800),
-        |_win :nw_sys::Window|->std::result::Result<(), JsValue>{
+        |_win: nw_sys::Window| -> std::result::Result<(), JsValue> {
             //app.create_context_menu()?;
             Ok(())
-        }
+        },
     )?;
 
     let window = nw_sys::window::get();
@@ -300,23 +293,22 @@ pub fn initialize()->Result<()>{
     app.add_shortcut()?;
 
     ExampleApp::test_app_functions()?;
-    
+
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn test_synopsis()->Result<()>{
+pub fn test_synopsis() -> Result<()> {
     let (app, _) = initialize_app()?;
     app.test_synopsis()?;
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn capture_window(image_id:String)->Result<()>{
-    let options = nw_sys::window::CaptureConfig::new()
-        .format("png");
+pub fn capture_window(image_id: String) -> Result<()> {
+    let options = nw_sys::window::CaptureConfig::new().format("png");
 
-    let closure = Closure::new::<Box<dyn FnMut(String)>>(Box::new(move |src|{
+    let closure = Closure::new::<Box<dyn FnMut(String)>>(Box::new(move |src| {
         log_info!("src: {:?}", src);
         let el = document().get_element_by_id(&image_id).unwrap();
         let _ = el.set_attribute("src", &src);
@@ -330,7 +322,7 @@ pub fn capture_window(image_id:String)->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn print_window(){
+pub fn print_window() {
     let options = nw_sys::window::PrintOptions::new()
         .autoprint(false)
         .footer_string("footer message")
@@ -344,33 +336,33 @@ pub fn print_window(){
 }
 
 #[wasm_bindgen]
-pub fn test_shell_open_external(){
+pub fn test_shell_open_external() {
     nw_sys::shell::open_external("https://github.com/nwjs/nw.js");
 }
 #[wasm_bindgen]
-pub fn test_shell_open_item()->Result<()>{
+pub fn test_shell_open_item() -> Result<()> {
     let path = nw_sys::app::start_path();
     log_trace!("path: {:?}", path);
     //TODO: this path fails under compiled app (.app/.exe file)
-    nw_sys::shell::open_item(&(path+"/root/index.html"));// path/to/file.txt
+    nw_sys::shell::open_item(&(path + "/root/index.html")); // path/to/file.txt
     Ok(())
 }
 #[wasm_bindgen]
-pub fn test_shell_show_item()->Result<()>{
+pub fn test_shell_show_item() -> Result<()> {
     let path = nw_sys::app::start_path();
     log_trace!("path: {:?}", path);
     //TODO: this path fails under compiled app (.app/.exe file)
-    nw_sys::shell::show_item_in_folder(&(path+"/root/index.html"));// absolute/path/to/file.txt
+    nw_sys::shell::show_item_in_folder(&(path + "/root/index.html")); // absolute/path/to/file.txt
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn test_clipboard()->Result<()>{
+pub fn test_clipboard() -> Result<()> {
     let clip = nw_sys::clipboard::get();
     let types = clip.get_available_types();
     log_info!("clipboard data types: {:?}", types);
     let mut query_list = Vec::new();
-    for data_type in types{
+    for data_type in types {
         query_list.push(nw_sys::clipboard::DataRead::from((data_type, None)));
     }
     query_list.push(nw_sys::clipboard::DataRead::from(("png".to_string(), None)));
@@ -387,15 +379,14 @@ pub fn test_clipboard()->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn read_screens_info()->Result<()>{
+pub fn read_screens_info() -> Result<()> {
     nw_sys::screen::init_once();
     let info = nw_sys::screen::screens()?;
     log_info!("screens infos: {:#?}", info);
     Ok(())
 }
 
-
-fn render_media(video_element_id:String, stream_id:String)->Result<()>{
+fn render_media(video_element_id: String, stream_id: String) -> Result<()> {
     log_info!("stream_id: {:?}", stream_id);
     let (app, _) = initialize_app()?;
 
@@ -407,50 +398,49 @@ fn render_media(video_element_id:String, stream_id:String)->Result<()>{
         video_element_id,
         video_constraints,
         None,
-        move |stream|->nw_sys::result::Result<()>{
+        move |stream| -> nw_sys::result::Result<()> {
             app.inner.set_media_stream(stream)?;
             Ok(())
-        }
+        },
     )?;
 
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn choose_desktop_media(video_element_id:String)->Result<()>{
+pub fn choose_desktop_media(video_element_id: String) -> Result<()> {
     let (app, _) = initialize_app()?;
 
     app.inner.choose_desktop_media(
         nw_sys::screen::MediaSources::ScreenAndWindow,
-        move |stream_id: Option<String>|->nw_sys::result::Result<()>{
-            if let Some(stream_id) = stream_id{
+        move |stream_id: Option<String>| -> nw_sys::result::Result<()> {
+            if let Some(stream_id) = stream_id {
                 render_media(video_element_id.clone(), stream_id)?;
             }
             Ok(())
-        }
+        },
     )?;
 
     Ok(())
 }
 
-
 #[wasm_bindgen]
-pub fn attach_notification_callbacks()->Result<()>{
+pub fn attach_notification_callbacks() -> Result<()> {
     let (app, _) = initialize_app()?;
     let app = &app.inner;
 
     //create event callbacks
-    let clicked_cb = callback!(|id:String|{
+    let clicked_cb = callback!(|id: String| {
         log_info!("Notification clicked: {id}");
     });
     notifications::on_clicked(clicked_cb.into_js());
 
-    let button_click_cb = callback!(|id:String, btn_index:u16|{
+    let button_click_cb = callback!(|id: String, btn_index: u16| {
         log_info!("Notification button clicked: {id}, {btn_index}");
     });
     notifications::on_button_clicked(button_click_cb.into_js());
 
-    let closed_cb = callback!(|id:String, by_user:bool|{
+    let closed_cb = callback!(|id: String, by_user: bool| {
         log_info!("Notification closed: {id}, {by_user}");
     });
     notifications::on_closed(closed_cb.as_ref());
@@ -466,7 +456,7 @@ pub fn attach_notification_callbacks()->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn basic_notification()->Result<()>{
+pub fn basic_notification() -> Result<()> {
     let (app, _) = initialize_app()?;
 
     // Create basic notification
@@ -477,9 +467,7 @@ pub fn basic_notification()->Result<()>{
         .message("Message Text")
         .context_message("Context Message");
 
-    let cb = Callback::new(|v:String|{
-        log_info!("notification create callback, id: {:?}", v)
-    });
+    let cb = Callback::new(|v: String| log_info!("notification create callback, id: {:?}", v));
     notifications::create(None, &options, Some(cb.into_js()));
 
     app.inner.callbacks.insert(cb)?;
@@ -488,7 +476,7 @@ pub fn basic_notification()->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn notification_with_buttons(){
+pub fn notification_with_buttons() {
     // Create notification with buttons
     let button1 = notifications::Button::new()
         .title("Button A")
@@ -509,7 +497,7 @@ pub fn notification_with_buttons(){
 }
 
 #[wasm_bindgen]
-pub fn notification_with_image(){
+pub fn notification_with_image() {
     // Create image notification
     let options = notifications::Options::new()
         .title("Title text")
@@ -522,7 +510,7 @@ pub fn notification_with_image(){
 }
 
 #[wasm_bindgen]
-pub fn notification_with_items(){
+pub fn notification_with_items() {
     // Create notification with items
 
     let item1 = notifications::Item::new()
@@ -543,7 +531,7 @@ pub fn notification_with_items(){
 }
 
 #[wasm_bindgen]
-pub fn notification_with_progress()->Result<()>{
+pub fn notification_with_progress() -> Result<()> {
     let (app, _) = initialize_app()?;
 
     // Create notification with progress
@@ -555,8 +543,11 @@ pub fn notification_with_progress()->Result<()>{
         .message("Mesage text")
         .progress(progress);
 
-    static mut ID:u16 = 0;
-    let noti_id = format!("{:?}", unsafe{ID+=1; ID});
+    static mut ID: u16 = 0;
+    let noti_id = format!("{:?}", unsafe {
+        ID += 1;
+        ID
+    });
     log_info!("noti_id: {noti_id}");
 
     notifications::create(Some(noti_id.clone()), &options, None);
@@ -564,12 +555,12 @@ pub fn notification_with_progress()->Result<()>{
     let app_clone = app.clone();
     let mut cb = Callback::<dyn FnMut()>::default();
     let cb_id = cb.get_id();
-    cb.set_closure(move ||{
+    cb.set_closure(move || {
         progress += 10;
         log_info!("progress: {progress}");
         let options = options.clone().progress(progress);
         notifications::update(&noti_id, &options, None);
-        if progress == 100{
+        if progress == 100 {
             let _ = app_clone.inner.callbacks.remove(&cb_id);
             *app_clone.interval_handle.lock().unwrap() = None;
         }
@@ -583,15 +574,15 @@ pub fn notification_with_progress()->Result<()>{
 }
 
 #[wasm_bindgen]
-pub fn end_desktop_media()->Result<()>{
-    if let Some(app) = app(){
+pub fn end_desktop_media() -> Result<()> {
+    if let Some(app) = app() {
         app.inner.stop_media_stream(None, None)?;
     }
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Result<()>{
+pub fn desktop_capture_monitor(video_element_id: String, container_id: String) -> Result<()> {
     let (app, _) = initialize_app()?;
 
     nw_sys::screen::init_once();
@@ -600,12 +591,14 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     let container = document().get_element_by_id(&container_id).unwrap();
     let container_id_clone = container_id.clone();
     let view_holder = container.query_selector(".view-holder").unwrap().unwrap();
-    let mut cb = Callback::<dyn FnMut(String, String)->Result<()>>::default();
-    cb.set_closure(move |id, thumbnail|->Result<()>{
+    let mut cb = Callback::<dyn FnMut(String, String) -> Result<()>>::default();
+    cb.set_closure(move |id, thumbnail| -> Result<()> {
         //log_info!("thumbnailchanged: id:{:?}, thumbnail:{:?}", id, thumbnail);
 
-        let panel_el = document().query_selector(&format!("#{} [data-id=\"{}\"]", &container_id, id)).unwrap();
-        if let Some(panel_el) = panel_el{
+        let panel_el = document()
+            .query_selector(&format!("#{} [data-id=\"{}\"]", &container_id, id))
+            .unwrap();
+        if let Some(panel_el) = panel_el {
             let img = panel_el.query_selector("img")?.unwrap();
             img.set_attribute("src", &format!("data:image/png;base64,{}", thumbnail))?;
         }
@@ -617,11 +610,11 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     app.inner.callbacks.insert(cb)?;
 
     let app_clone = app.clone();
-    
-    let mut cb = Callback::<dyn FnMut(String, String, u16, String)->Result<()>>::default();
+
+    let mut cb = Callback::<dyn FnMut(String, String, u16, String) -> Result<()>>::default();
     cb.set_closure(move |id:String, name:String, _order, w_type|->Result<()>{
         log_info!("added: id:{:?}, name:{:?}, order:{}, w_type:{:?}", id, name, _order, w_type);
-        
+
         let contaner_el = view_holder.query_selector(&format!(".{} .items", w_type)).unwrap();
         let contaner_el = match contaner_el{
             Some(el) =>el,
@@ -633,7 +626,7 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
                         <div class="items" @items></div>
                     </div>
                 }?;
-    
+
                 tree.inject_into(&view_holder)?;
 
                 tree.hooks().get("items").unwrap().clone()
@@ -672,8 +665,8 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     dcm::on("added", cb.into_js());
     app.inner.callbacks.insert(cb)?;
 
-    let mut cb = Callback::<dyn FnMut(u16)->Result<()>>::default();
-    cb.set_closure(move |id|->Result<()>{
+    let mut cb = Callback::<dyn FnMut(u16) -> Result<()>>::default();
+    cb.set_closure(move |id| -> Result<()> {
         log_info!("removed: id:{:?}", id);
         Ok(())
     });
@@ -684,14 +677,18 @@ pub fn desktop_capture_monitor(video_element_id:String, container_id:String)->Re
     dcm::start(true, true);
     log_info!("dcm::started(): {}", dcm::started());
     container.class_list().add_1("started")?;
-    
+
     Ok(())
 }
 
 #[wasm_bindgen]
-pub fn stop_capture_monitor(el:String)->Result<()>{
+pub fn stop_capture_monitor(el: String) -> Result<()> {
     nw_sys::screen::desktop_capture_monitor::stop();
-    document().get_element_by_id(&el).unwrap().class_list().remove_1("started")?;
+    document()
+        .get_element_by_id(&el)
+        .unwrap()
+        .class_list()
+        .remove_1("started")?;
 
     Ok(())
 }
