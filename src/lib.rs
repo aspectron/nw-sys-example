@@ -90,8 +90,8 @@ impl ExampleApp {
                 win.on("close", close_callback.as_ref());
                 win.on("maximize", maximize_callback.as_ref());
 
-                inner.callbacks.insert(close_callback)?;
-                inner.callbacks.insert(maximize_callback)?;
+                inner.callbacks.retain(close_callback)?;
+                inner.callbacks.retain(maximize_callback)?;
 
                 Ok(())
             },
@@ -448,9 +448,9 @@ pub fn attach_notification_callbacks() -> Result<()> {
     //let callback_js_value: JsValue = closed_cb.clone().into();
     //log_info!("callback_js_value: {:?}", callback_js_value);
 
-    app.callbacks.insert(clicked_cb)?;
-    app.callbacks.insert(button_click_cb)?;
-    app.callbacks.insert(closed_cb)?;
+    app.callbacks.retain(clicked_cb)?;
+    app.callbacks.retain(button_click_cb)?;
+    app.callbacks.retain(closed_cb)?;
 
     Ok(())
 }
@@ -470,7 +470,7 @@ pub fn basic_notification() -> Result<()> {
     let cb = Callback::new(|v: String| log_info!("notification create callback, id: {:?}", v));
     notifications::create(None, &options, Some(cb.into_js()));
 
-    app.inner.callbacks.insert(cb)?;
+    app.inner.callbacks.retain(cb)?;
 
     Ok(())
 }
@@ -568,7 +568,7 @@ pub fn notification_with_progress() -> Result<()> {
 
     let h = set_interval(cb.closure().unwrap().as_ref(), 1000).unwrap();
     *app.interval_handle.lock().unwrap() = Some(h);
-    app.inner.callbacks.insert(cb)?;
+    app.inner.callbacks.retain(cb)?;
 
     Ok(())
 }
@@ -607,7 +607,7 @@ pub fn desktop_capture_monitor(video_element_id: String, container_id: String) -
     });
 
     dcm::on("thumbnailchanged", cb.into_js());
-    app.inner.callbacks.insert(cb)?;
+    app.inner.callbacks.retain(cb)?;
 
     let app_clone = app.clone();
 
@@ -663,7 +663,7 @@ pub fn desktop_capture_monitor(video_element_id: String, container_id: String) -
     });
 
     dcm::on("added", cb.into_js());
-    app.inner.callbacks.insert(cb)?;
+    app.inner.callbacks.retain(cb)?;
 
     let mut cb = Callback::<dyn FnMut(u16) -> Result<()>>::default();
     cb.set_closure(move |id| -> Result<()> {
@@ -672,7 +672,7 @@ pub fn desktop_capture_monitor(video_element_id: String, container_id: String) -
     });
 
     dcm::on("removed", cb.into_js());
-    app.inner.callbacks.insert(cb)?;
+    app.inner.callbacks.retain(cb)?;
 
     dcm::start(true, true);
     log_info!("dcm::started(): {}", dcm::started());
